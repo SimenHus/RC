@@ -2,8 +2,8 @@
 # https://gpiozero.readthedocs.io/en/stable/
 from gpiozero import DigitalOutputDevice
 
-class MotorDriver:
-    'Motor driver class'
+class ULN2003A:
+    'ULN2003A PCB motor driver'
     def __init__(self, pinIDs, defaultDirection=1):
         self.pins = {
             0: DigitalOutputDevice(pinIDs[0]), # IN4
@@ -36,3 +36,7 @@ class MotorDriver:
     def cleanup(self):
         for key, pin in self.pins.items(): pin.off()
         
+class DCMotor:
+    'DC Motor driver'
+    def __init__(self):
+        pass

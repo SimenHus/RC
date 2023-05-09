@@ -1,4 +1,4 @@
-from supportingModules.MotorDriver import MotorDriver
+from supportingModules.MotorDriver import DCMotor
 from time import sleep
 import threading
 
@@ -6,19 +6,19 @@ class ThrustAllocator(threading.Thread):
 
     def __init__(self, queue):
         super().__init__(name='Thrust')
-        # IN4, IN3, IN2, IN1. Number refers to GPIO pin number
-        motor1Pins = [12, 16, 20, 21]
-        motor2Pins = [26, 19, 13, 6]
-        motor3Pins = [22, 10, 9, 11]
-        motor4Pins = [24, 25, 8, 7]
-        self.MotorFR = MotorDriver(motor1Pins)
-        self.MotorBL = MotorDriver(motor2Pins)
-        self.MotorFL = MotorDriver(motor3Pins)
-        self.MotorBR = MotorDriver(motor4Pins)
-        self.Motors = [self.MotorFR, self.MotorFL, self.MotorBR, self.MotorBL]
-        
-        self.driveState = 0
-        self.turning = False
+
+        # Motor driver initialization
+        motorRightPins = [12, 16] # Dummy pins
+        motorLeftPins = [22, 10] # Dummy pins
+        self.MotorR = DCMotor(motorRightPins)
+        self.MotorL = DCMotor(motorLeftPins)
+        self.Motors = [self.MotorR, self.MotorL]
+
+
+        self.desiredThrust = {
+            'x': 0,
+            'y': 0,
+        }
 
         # Threading variables
         self.queue = queue
@@ -29,34 +29,27 @@ class ThrustAllocator(threading.Thread):
         while self.running:
             if not self.queue.empty(): self.readmsg(self.queue.get())
 
-            currentState = self.driveState
+            self.allocateThrust()
 
-            if currentState and self.turning: self.turn(currentState)
-            elif currentState: self.driveStraight(currentState)
+    def allocateThrust(self):
+        
+        # Normalize thrust input to -1 , 1
+        extremes = [0, 255]
 
-            sleep(0.002)
+        def norm(value):
+            return 2*value/(extremes[1] - extremes[0]) - 1
+        deadzone = 5
+        thrust = [norm(_) for _ in self.desiredThrust]
+        # If within deadzone -> thrust = 0
+        for ax in thrust: ax = 0 if ax**2 < norm(deadzone)**2 else ax
 
-    def driveStraight(self, direction):
-        forward = True if direction > 0 else False
-        self.MotorFR.drive(reverse=forward)
-        self.MotorBR.drive(reverse=forward)
-        self.MotorFL.drive(reverse=not forward)
-        self.MotorBL.drive(reverse=not forward)
-        if forward: print('Driving forwards')
-        else: print('Driving backwards')
-
-
-    def turn(self, direction):
-        reverse = True if direction > 0 else False
-        for motor in self.Motors: motor.drive(reverse=reverse)
-        if reverse: print('Turning left')
-        else: print('Turning right')
+        # Legg til strøm kontroll ved motsatt polaritet
+        print(f'Motor thrust: {thrust}')
 
     def readmsg(self, msg):
-        action, value, turn = msg
-        if action == 'driving':
-            self.turning = turn
-            self.driveState = value
+        action, value, comment = msg
+        if action == 'thrust':
+            self.desiredThrust[comment] = value
 
     def cleanup(self):
         for motor in self.Motors: motor.cleanup()

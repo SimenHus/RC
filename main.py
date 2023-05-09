@@ -1,5 +1,4 @@
 from time import sleep
-import threading
 from queue import Queue
 
 from Modules.ThrustAllocator import ThrustAllocator
@@ -7,11 +6,13 @@ from Modules.JoystickInterface import JoystickInterface
 
 # Test
 
+#Test 2
+
 class ButtonMapping:
     def __init__(self):
         self.mapping = {
-            'KeypadY': self.driveControl,
-            'KeypadX': lambda x: self.driveControl(x, turn=True),
+            'KeypadY': lambda value: self.thrustMsg(value, 'y'),
+            'KeypadX': lambda value: self.thrustMsg(value, 'x'),
             'PSButton': self.exit,
         }
 
@@ -20,8 +21,8 @@ class ButtonMapping:
         if button in self.mapping:
             return self.mapping[button](value)
     
-    def driveControl(self, value, turn=False):
-        msg = ['driving', -value, turn]
+    def thrustMsg(self, value, axis):
+        msg = ['thrust', value, axis]
         return msg
 
     def exit(self, msg):
