@@ -1,6 +1,7 @@
-from supportingModules.MotorDriver import DCMotor
+# from supportingModules.MotorDriver import DCMotor
 from time import sleep
 import threading
+import numpy as np
 
 class ThrustAllocator(threading.Thread):
 
@@ -10,14 +11,14 @@ class ThrustAllocator(threading.Thread):
         # Motor driver initialization
         motorRightPins = [12, 16] # Dummy pins
         motorLeftPins = [22, 10] # Dummy pins
-        self.MotorR = DCMotor(motorRightPins)
-        self.MotorL = DCMotor(motorLeftPins)
-        self.Motors = [self.MotorR, self.MotorL]
+        # self.MotorR = DCMotor(motorRightPins)
+        # self.MotorL = DCMotor(motorLeftPins)
+        # self.Motors = [self.MotorR, self.MotorL]
 
 
-        self.desiredThrust = {
-            'x': 0,
-            'y': 0,
+        self.desiredForces = {
+            'force': np.array([0]*3),
+            'torque': np.array([0]*3),
         }
 
         # Threading variables
@@ -26,33 +27,31 @@ class ThrustAllocator(threading.Thread):
         self.running = True
 
     def run(self):
+        
+        print('Thruster ready...')
         while self.running:
             if not self.queue.empty(): self.readmsg(self.queue.get())
 
-            self.allocateThrust()
+    def allocateThrust(self, desiredForces):
+        r = 1 # Dist from CoG to motor
+        Kf = 10
+        motor1Force = (desiredForces['force'][1] + desiredForces['torque'][2]/r)/2
+        motor2Force = -(desiredForces['force'][1] - desiredForces['torque'][2]/r)/2
 
-    def allocateThrust(self):
-        
-        # Normalize thrust input to -1 , 1
-        extremes = [0, 255]
+        v1 = motor1Force/Kf
+        v2 = motor2Force/Kf
 
-        def norm(value):
-            return 2*value/(extremes[1] - extremes[0]) - 1
-        deadzone = 5
-        thrust = [norm(_) for _ in self.desiredThrust]
-        # If within deadzone -> thrust = 0
-        for ax in thrust: ax = 0 if ax**2 < norm(deadzone)**2 else ax
-
-        # Legg til strøm kontroll ved motsatt polaritet
-        print(f'Motor thrust: {thrust}')
+        print(f'\n\n--- Motor 1 ----- Motor 2 ---')
+        print(f'--- {v1} ----- {v2} ---')
 
     def readmsg(self, msg):
         action, value, comment = msg
-        if action == 'thrust':
-            self.desiredThrust[comment] = value
+        if action == 'forces':
+            self.desiredForces[comment] = value
+            self.allocateThrust(self.desiredForces)
 
     def cleanup(self):
-        for motor in self.Motors: motor.cleanup()
+        # for motor in self.Motors: motor.cleanup()
         self.running = False
 
 

@@ -40,3 +40,4 @@ class DCMotor:
     'DC Motor driver'
     def __init__(self):
         pass
+    # Legg til strøm kontroll ved endring av polaritet
