@@ -1,24 +1,25 @@
-from supportingModules.MotorDriver import MotorDriver
+# from supportingModules.MotorDriver import DCMotor
 from time import sleep
 import threading
+import numpy as np
 
 class ThrustAllocator(threading.Thread):
 
     def __init__(self, queue):
         super().__init__(name='Thrust')
-        # IN4, IN3, IN2, IN1. Number refers to GPIO pin number
-        motor1Pins = [12, 16, 20, 21]
-        motor2Pins = [26, 19, 13, 6]
-        motor3Pins = [22, 10, 9, 11]
-        motor4Pins = [24, 25, 8, 7]
-        self.MotorFR = MotorDriver(motor1Pins)
-        self.MotorBL = MotorDriver(motor2Pins)
-        self.MotorFL = MotorDriver(motor3Pins)
-        self.MotorBR = MotorDriver(motor4Pins)
-        self.Motors = [self.MotorFR, self.MotorFL, self.MotorBR, self.MotorBL]
-        
-        self.driveState = 0
-        self.turning = False
+
+        # Motor driver initialization
+        motorRightPins = [12, 16] # Dummy pins
+        motorLeftPins = [22, 10] # Dummy pins
+        # self.MotorR = DCMotor(motorRightPins)
+        # self.MotorL = DCMotor(motorLeftPins)
+        # self.Motors = [self.MotorR, self.MotorL]
+
+
+        self.desiredForces = {
+            'force': np.array([0]*3),
+            'torque': np.array([0]*3),
+        }
 
         # Threading variables
         self.queue = queue
@@ -26,40 +27,31 @@ class ThrustAllocator(threading.Thread):
         self.running = True
 
     def run(self):
+        
+        print('Thruster ready...')
         while self.running:
             if not self.queue.empty(): self.readmsg(self.queue.get())
 
-            currentState = self.driveState
+    def allocateThrust(self, desiredForces):
+        r = 1 # Dist from CoG to motor
+        Kf = 10
+        motor1Force = (desiredForces['force'][1] + desiredForces['torque'][2]/r)/2
+        motor2Force = -(desiredForces['force'][1] - desiredForces['torque'][2]/r)/2
 
-            if currentState and self.turning: self.turn(currentState)
-            elif currentState: self.driveStraight(currentState)
+        v1 = motor1Force/Kf
+        v2 = motor2Force/Kf
 
-            sleep(0.002)
-
-    def driveStraight(self, direction):
-        forward = True if direction > 0 else False
-        self.MotorFR.drive(reverse=forward)
-        self.MotorBR.drive(reverse=forward)
-        self.MotorFL.drive(reverse=not forward)
-        self.MotorBL.drive(reverse=not forward)
-        if forward: print('Driving forwards')
-        else: print('Driving backwards')
-
-
-    def turn(self, direction):
-        reverse = True if direction > 0 else False
-        for motor in self.Motors: motor.drive(reverse=reverse)
-        if reverse: print('Turning left')
-        else: print('Turning right')
+        print(f'\n\n--- Motor 1 ----- Motor 2 ---')
+        print(f'--- {v1} ----- {v2} ---')
 
     def readmsg(self, msg):
-        action, value, turn = msg
-        if action == 'driving':
-            self.turning = turn
-            self.driveState = value
+        action, value, comment = msg
+        if action == 'forces':
+            self.desiredForces[comment] = value
+            self.allocateThrust(self.desiredForces)
 
     def cleanup(self):
-        for motor in self.Motors: motor.cleanup()
+        # for motor in self.Motors: motor.cleanup()
         self.running = False
 
 
