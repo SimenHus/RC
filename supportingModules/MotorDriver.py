@@ -1,6 +1,7 @@
 # https://www.electronicoscaldas.com/datasheet/ULN2003A-PCB.pdf
 # https://gpiozero.readthedocs.io/en/stable/
-from gpiozero import DigitalOutputDevice
+from gpiozero import DigitalOutputDevice, Motor
+from time import sleep
 
 class ULN2003A:
     'ULN2003A PCB motor driver'
@@ -38,6 +39,27 @@ class ULN2003A:
         
 class DCMotor:
     'DC Motor driver'
-    def __init__(self):
-        pass
+    def __init__(self, pinIDs):
+        self.Motor = Motor(pinIDs[0], pinIDs[1])
+
+    def setVoltage(self, V):
+        def sign(x): return 1 if x >=0 else -1
+        V = V/3.3 # Max 3.3V in RSPI pins
+        newDirection = sign(V)
+        currentDirection = sign(self.Motor.value) # Get current motor direction
+
+        if newDirection*V > 1: V = newDirection*1
+
+        if newDirection != currentDirection:
+            self.Motor.stop()
+            sleep(0.1)
+
+        if V == 0: self.Motor.stop()
+        elif newDirection > 0: self.Motor.forward(V)
+        elif newDirection < 0: self.Motor.backward(V)
+
+
+    def cleanup(self):
+        self.Motor.stop()
+
     # Legg til strøm kontroll ved endring av polaritet

@@ -34,12 +34,12 @@ class ThrustAllocator(threading.Thread):
 
     def allocateThrust(self, desiredForces):
         r = 1 # Dist from CoG to motor
-        Kf = 10
-        motor1Force = (desiredForces['force'][1] + desiredForces['torque'][2]/r)/2
-        motor2Force = -(desiredForces['force'][1] - desiredForces['torque'][2]/r)/2
+        motor1Torque = (desiredForces['force'][1] + desiredForces['torque'][2]/r)/2
+        motor2Torque = -(desiredForces['force'][1] - desiredForces['torque'][2]/r)/2
 
-        v1 = motor1Force/Kf
-        v2 = motor2Force/Kf
+        Kt = 10 # Relation between motor voltage and torque
+        v1 = motor1Torque/Kt
+        v2 = motor2Torque/Kt
 
         print(f'\n\n--- Motor 1 ----- Motor 2 ---')
         print(f'--- {v1} ----- {v2} ---')
