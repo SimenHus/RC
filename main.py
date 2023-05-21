@@ -42,7 +42,7 @@ class ButtonMapping:
         centered = 0 if centered**2 < deadzone**2 else centered
         normalized = centered/median
 
-        maxVel = 5
+        maxVel = 1
         self.input[velType] = normalized*maxVel
 
         linVel = np.array([self.input['linx'], self.input['liny'], self.input['linz']])
