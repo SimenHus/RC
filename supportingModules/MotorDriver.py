@@ -37,6 +37,8 @@ class ULN2003A:
     def cleanup(self):
         for key, pin in self.pins.items(): pin.off()
         
+
+
 class DCMotor:
     'DC Motor driver'
     def __init__(self, pinIDs):
@@ -61,5 +63,4 @@ class DCMotor:
 
     def cleanup(self):
         self.Motor.stop()
-
-    # Legg til strøm kontroll ved endring av polaritet
+        # Legg til strøm kontroll ved endring av polaritet
