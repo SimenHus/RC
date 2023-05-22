@@ -42,23 +42,23 @@ class SimulatedInput(threading.Thread):
     def onPress(self, key):
         if self.keyPressed: pass
         elif key == Key.up:
-            self.queue.put([[self.buttons[16], 255], self.name])
+            self.queue.put([[self.buttons[0], 255], self.name])
             self.keyPressed = True
         elif key == Key.down:
-            self.queue.put([[self.buttons[16], 0], self.name])
+            self.queue.put([[self.buttons[0], 0], self.name])
             self.keyPressed = True
         elif key == Key.left:
-            self.queue.put([[self.buttons[17], 0], self.name])
+            self.queue.put([[self.buttons[1], 0], self.name])
             self.keyPressed = True
         elif key == Key.right:
-            self.queue.put([[self.buttons[17], 255], self.name])
+            self.queue.put([[self.buttons[1], 255], self.name])
             self.keyPressed = True
         
 
     def onRelease(self, key):
         self.keyPressed = False
-        if key == Key.right or key == Key.left: self.queue.put([[self.buttons[17], 128], self.name])
-        if key == Key.up or key == Key.down: self.queue.put([[self.buttons[16], 128], self.name])
+        if key == Key.right or key == Key.left: self.queue.put([[self.buttons[1], 128], self.name])
+        if key == Key.up or key == Key.down: self.queue.put([[self.buttons[0], 128], self.name])
         if key == Key.esc: self.queue.put([[self.buttons[316], 1], self.name])
 
     def run(self):
