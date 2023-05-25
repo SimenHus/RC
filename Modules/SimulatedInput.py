@@ -67,6 +67,7 @@ class SimulatedInput(threading.Thread):
 
         print('Keyboard listener ready...')
         while self.running: sleep(1)
+        listener.stop()
         listener.join()
 
     def cleanup(self):

@@ -1,19 +1,30 @@
-from time import sleep
+# Native imports
+from time import sleep, time
 from queue import Queue
+from threading import Thread
 import numpy as np
+
+
+# Custom modules
 from Modules.ThrustAllocator import ThrustAllocator
+from Modules.Controller import Controller
 # from Modules.JoystickInterface import JoystickInterface
 from Modules.SimulatedInput import SimulatedInput
+from Modules.SensorData import SensorData
 
-class ButtonMapping:
-    def __init__(self, thrustAlloc):
-        self.mapping = {
+class Manager:
+    def __init__(self):
+
+        # Button mapping vars
+        self.buttonMapping = {
             # 'KeypadY': lambda value: self.sendInput(np.array([128, 128, value]), 'torque'),
             # 'KeypadX': lambda value: self.sendInput(np.array([128, value, 128]), 'force'),
             'StickLX': lambda value: self.velocitySetpoint(value, 'linx'),
             'StickLY': lambda value: self.velocitySetpoint(value, 'liny'),
             'StickRX': lambda value: self.velocitySetpoint(value, 'angz'),
             'PSButton': self.exit,
+            'Start': lambda value: self.toggleThrust(value, 'Enable'),
+            'ButtonSouth': lambda value: self.toggleThrust(value, 'Disable'),
         }
 
         self.input = {
@@ -25,12 +36,75 @@ class ButtonMapping:
             'angz': 0,
         }
 
-        self.ThrustAllocator = thrustAlloc
+        # Controller vars
+        self.dState = {
+            'pos': np.array([0]*3),
+            'angle': np.array([0]*3),
+            'linVel': np.array([0]*3),
+            'angVel': np.array([0]*3),
+        }
+
+        self.state = {
+            'x': np.array([0]*3),
+            'theta': np.array([0]*3),
+            'v': np.array([0]*3),
+            'w': np.array([0]*3),
+        }
+        self.T = 1000 # Sample time in ms
+
+        self.Controller = Controller()
+        self.joyQ = Queue()
+
+        # joy = JoystickInterface(joyq)
+        self.joy = SimulatedInput(self.joyQ)
+        self.sensorData = SensorData()
+        self.thrustAllocator = ThrustAllocator()
+
+        self.running = True
+
+    def run(self):
+
+        threads = [self.joy]
+        QManager = Thread(target=self.QManager)
+
+        QManager.start()
+        for t in threads: t.start()
+        self.thrustAllocator.setActive() # For testing purposes
+
+        print('Program started...')
+        while self.running:
+            startTime = time()
+
+            # self.state = self.sensorData.sample(self.state) # Sample filter (Kalmanfilter?)
+            thrust = self.Controller.sample(self.state, self.dState)
+            self.thrustAllocator.allocateThrust(thrust)
+
+            elapsedTime = (time() - startTime) * 1000 # Elapsed time in ms
+            sleepTime = (self.T - elapsedTime) / 1000 # Sleep time in s
+            if sleepTime < 0: sleepTime = 0
+            print(f'Elapsed time: {elapsedTime:0.2f}ms')
+            sleep(sleepTime)
+
+        print('Cleaning up...')
+        for t in threads: t.cleanup()
+        for t in threads: t.join()
+        QManager.join()
+
+        print('Nice and clean')
+
+    def QManager(self):
+        while self.running:
+            if not self.joyQ.empty(): self.buttonPress(self.joyQ.get())
 
     def buttonPress(self, btn):
         button, value = btn
-        if button in self.mapping:
-            return self.mapping[button](value)
+        if button in self.buttonMapping:
+            self.buttonMapping[button](value)
+        
+    def toggleThrust(self, btnValue, toggle):
+        if btnValue:
+            if toggle == 'Enable': self.thrustAllocator.setActive()
+            if toggle == 'Disable': self.thrustAllocator.setIdle()
     
     def velocitySetpoint(self, value, velType):
         extremes = [0, 255]
@@ -47,35 +121,17 @@ class ButtonMapping:
 
         linVel = np.array([self.input['linx'], self.input['liny'], self.input['linz']])
         angVel = np.array([self.input['angx'], self.input['angy'], self.input['angz']])
-        self.ThrustAllocator.changeSetpoint(linVel=linVel, angVel=angVel)
+
+        self.dState['linVel'] = self.Controller.R(self.state['theta']).T@linVel
+        self.dState['angVel'] = angVel
 
     def exit(self, msg):
-        return 'quit'
+        self.running = False
 
 
 if __name__ == '__main__':
-    joyq = Queue()
-
-    # joy = JoystickInterface(joyq)
-    joy = SimulatedInput(joyq)
-    thrust = ThrustAllocator()
-    threads = [joy, thrust]
-    mapper = ButtonMapping(thrust)
-    try:
-        for t in threads: t.start()
-        print('Program started...')
-        while True:
-            
-            if not joyq.empty():
-                joymsg = joyq.get()
-                action = mapper.buttonPress(joymsg[0])
-                if action == 'quit': raise KeyboardInterrupt
-
-    except KeyboardInterrupt:
-        print('Cleaning up...')
-        for t in threads: t.cleanup()
-        for t in threads: t.join()
-        
-    print('Nice and clean')
+    app = Manager()
+    app.run()
+    
 
 
