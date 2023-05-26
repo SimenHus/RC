@@ -50,6 +50,7 @@ class Manager:
             'v': np.array([0]*3),
             'w': np.array([0]*3),
         }
+
         self.T = 1000 # Sample time in ms
 
         self.Controller = Controller()
@@ -57,10 +58,11 @@ class Manager:
 
         # joy = JoystickInterface(joyq)
         self.joy = SimulatedInput(self.joyQ)
-        self.sensorData = SensorData()
+        self.sensorData = SensorData(self.T/1000) # Initialize sensor reader and kalman filter
         self.thrustAllocator = ThrustAllocator()
 
         self.running = True
+        self.idleMotor = True
 
     def run(self):
 
@@ -69,14 +71,18 @@ class Manager:
 
         QManager.start()
         for t in threads: t.start()
-        self.thrustAllocator.setActive() # For testing purposes
+        self.idleMotor = False # For testing purposes
 
-        print('Program started...')
+        thrust = np.array([0]*6)
+
         while self.running:
             startTime = time()
 
-            # self.state = self.sensorData.sample(self.state) # Sample filter (Kalmanfilter?)
-            thrust = self.Controller.sample(self.state, self.dState)
+            self.state = self.sensorData.sample(self.state, thrust) # Sample filter
+            thrust = self.Controller.sample(self.state, self.dState) # Sample controller
+
+
+            if self.idleMotor: thrust = np.array([0]*6) # Stop motors if idle
             self.thrustAllocator.allocateThrust(thrust)
 
             elapsedTime = (time() - startTime) * 1000 # Elapsed time in ms
@@ -103,8 +109,8 @@ class Manager:
         
     def toggleThrust(self, btnValue, toggle):
         if btnValue:
-            if toggle == 'Enable': self.thrustAllocator.setActive()
-            if toggle == 'Disable': self.thrustAllocator.setIdle()
+            if toggle == 'Enable': self.idleMotor = False
+            if toggle == 'Disable': self.idleMotor = True
     
     def velocitySetpoint(self, value, velType):
         extremes = [0, 255]

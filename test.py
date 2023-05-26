@@ -1,4 +1,5 @@
-import numpy as np
+import sympy as sp
 
-a = np.array([0, 0, 0])
-print(a+10)
+tings = sp.Matrix([1, 0])
+
+print(sp.Matrix.hstack(tings.T, [1]))

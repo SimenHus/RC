@@ -38,8 +38,6 @@ class ThrustAllocator:
         # self.Motor2 = DCMotor(motorLeftPins)
         # self.Motors = [self.Motor1, self.Motor2]
 
-        self.idle = True # If motors should remain idle
-
         # Motor params
         self.Kf = 1 # Motor force const
         self.fd = 0 # Linear friction
@@ -54,20 +52,15 @@ class ThrustAllocator:
         Vs = (thrust[5] + self.td)/(self.Kf*self.rw)
         Vd = (thrust[1] + self.fd)/self.Kf
 
-        V1 = 1/2*(Vs + Vd) if not self.idle else 0
-        V2 = 1/2*(Vs - Vd) if not self.idle else 0
+        V1 = 1/2*(Vs + Vd)
+        V2 = 1/2*(Vs - Vd)
 
         Volts = [V1, V2]
         print(f'\n\n--- Motor 1 ----- Motor 2 ---')
         print(f'--- {V1} ----- {V2} ---')
         # for V, motor in zip(Volts, self.Motors): motor.setVoltage(V)
 
-    def setIdle(self):
-        self.idle = True
-
-    def setActive(self):
-        self.idle = False
 
     def cleanup(self):
         # for motor in self.Motors: motor.cleanup()
-        self.idle = True
+        pass
