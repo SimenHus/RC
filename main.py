@@ -11,6 +11,7 @@ from Modules.Controller import Controller
 # from Modules.JoystickInterface import JoystickInterface
 from Modules.SimulatedInput import SimulatedInput
 from Modules.SensorData import SensorData
+from Modules.LiveGrapher import Grapher
 
 class Manager:
     def __init__(self):
@@ -46,9 +47,10 @@ class Manager:
 
         self.state = {
             'x': np.array([0]*3),
-            'theta': np.array([0]*3),
+            'q': np.array([0]*4),
             'v': np.array([0]*3),
             'w': np.array([0]*3),
+            'R': np.eye(3),
         }
 
         self.T = 1000 # Sample time in ms
@@ -60,6 +62,7 @@ class Manager:
         self.joy = SimulatedInput(self.joyQ)
         self.sensorData = SensorData(self.T/1000) # Initialize sensor reader and kalman filter
         self.thrustAllocator = ThrustAllocator()
+        self.grapher = Grapher()
 
         self.running = True
         self.idleMotor = True
@@ -128,7 +131,7 @@ class Manager:
         linVel = np.array([self.input['linx'], self.input['liny'], self.input['linz']])
         angVel = np.array([self.input['angx'], self.input['angy'], self.input['angz']])
 
-        self.dState['linVel'] = self.Controller.R(self.state['theta']).T@linVel
+        self.dState['linVel'] = self.state['R'].T@linVel
         self.dState['angVel'] = angVel
 
     def exit(self, msg):

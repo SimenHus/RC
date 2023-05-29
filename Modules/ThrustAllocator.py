@@ -10,7 +10,7 @@ from time import sleep
 
 #     def setVoltage(self, V):
 #         def sign(x): return 1 if x >=0 else -1
-#         V = V/3.3 # Max 3.3V in RSPI pins
+#         if sign(V)*V > 3.3: V = sign(V)*3.3 # Max 3.3V in RSPI pins
 #         newDirection = sign(V)
 #         currentDirection = sign(self.Motor.value) # Get current motor direction
 

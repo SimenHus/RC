@@ -60,25 +60,16 @@ class SensorData:
         # If kalman filter is used, only raw data is necessary from the sensor and the output rate can be high
 
         # Convert sensor readings to y
-        r = np.arctan2(accRaw[1], np.sqrt(accRaw[0]**2 + accRaw[2]**2))
-        p = np.arctan2(accRaw[0], np.sqrt(accRaw[1]**2 + accRaw[2]**2))
+        roll = np.arctan2(accRaw[1], np.sqrt(accRaw[0]**2 + accRaw[2]**2))
+        pitch = np.arctan2(accRaw[0], np.sqrt(accRaw[1]**2 + accRaw[2]**2))
         # Assuming IMU in CoG
 
-        mag_x = magRaw[0]*np.cos(p) + magRaw[1]*np.sin(r) * \
-            np.sin(p) + magRaw[2]*np.cos(r)*np.sin(p)
-        mag_y = magRaw[1]*np.cos(r) - magRaw[2]*np.sin(r)
-        y = np.arctan2(-mag_y, mag_x)
+        mag_x = magRaw[0]*np.cos(pitch) + magRaw[1]*np.sin(roll) * \
+            np.sin(pitch) + magRaw[2]*np.cos(roll)*np.sin(pitch)
+        mag_y = magRaw[1]*np.cos(roll) - magRaw[2]*np.sin(roll)
+        yaw = np.arctan2(-mag_y, mag_x)
 
-        c = lambda _: np.cos(_)
-        s = lambda _: np.sin(_)
-
-        # Euler angles to quaternions
-        measuredQ = np.array([
-            [c(r)*c(p)*c(y) + s(r)*s(p)*s(y)],
-            [s(r)*c(p)*c(y) - c(r)*s(p)*s(y)],
-            [c(r)*s(p)*c(y) + s(r)*c(p)*s(y)],
-            [c(r)*c(p)*s(y) - s(r)*s(p)*c(y)],
-        ])
+        measuredQ = np.array([roll, pitch, yaw])
 
         y = np.hstack((measuredQ, gyroRaw, accRaw*self.dt))
 
@@ -91,7 +82,6 @@ class SensorData:
         # Predict
         F = self.F(x, u)
         x_ = self.f(x, u)
-        x_[3:7] = x_[3:7]/np.linalg.norm(x_[3:7])
         P_ = F@P@F.T + self.Qw
 
         # Predicted measurements
@@ -106,7 +96,7 @@ class SensorData:
         x = x_ + K@(y - h)
         self.P = (self.Inxn - K@H)@P_@(self.Inxn - K@H).T + K@self.Rv@K.T
 
-        x[3:7] = x[3:7]/np.linalg.norm(x[3:7])
+        x[3:7] = self.normalize(x[3:7])
         self.x = x
 
         state = {
@@ -123,15 +113,16 @@ class SensorData:
         q0 = np.array([1, 0, 0, 0])
         x = np.hstack(([0]*3, q0, [0]*(self.nx-7)))  # Initialize x
         H = self.H(x)
-        A = self.F(x, np.array([1]*6))
-        O = self.H(x)
+        # A = self.F(x, np.array([0]*6))
+        # print(A)
+        # O = self.H(x)
 
-        obs = H
-        for i in range(1, self.nx):
-            obs = obs@A
-            O = np.vstack((O, obs))
+        # obs = H
+        # for i in range(1, self.nx):
+        #     obs = obs@A
+        #     O = np.vstack((O, obs))
 
-        print(np.linalg.matrix_rank(O))
+        # print(np.linalg.matrix_rank(O))
         
     def R(self, q):
         nu, e1, e2, e3 = q
@@ -152,13 +143,33 @@ class SensorData:
             nu*self.I3x3 + self.skew(eps)
         )
         return U
-
+    
+    def qMul(self, q1, q2, getMatrix=False):
+        nu1, e1 = q1[0], sp.Matrix(q1[1:])
+        nu2, e2 = q2[0], sp.Matrix(q2[1:])
+        firstRow = sp.Matrix.hstack(sp.Matrix([nu1]), -e1.T)
+        bottomThreeRows = sp.Matrix.hstack(
+            e1.reshape(3, 1),
+            nu1*self.I3x3 + self.skew(e1)
+            )
+        
+        lMatrix = sp.Matrix.vstack(firstRow, bottomThreeRows)
+        rMatrix = sp.Matrix.vstack(sp.Matrix([nu2]), e2)
+        return sp.simplify(lMatrix*rMatrix) if not getMatrix else lMatrix
+    
+    def qExp(self, q):
+        nu, eps = q[0], sp.Matrix(q[1:])
+        norm = (sum(_**2 for _ in q))**(1/2)
+        newNu = sp.Matrix([sp.exp(nu)*sp.cos(norm)])
+        newEps = sp.exp(nu)*eps*sp.sinc(norm)
+        return sp.Matrix.vstack(newNu, newEps)
     
     def stateFunc(self):
         r = sp.Matrix(self.xSymb[:3])  # Position of body frame
         q = sp.Matrix(self.xSymb[3:7])  # Orientation of body frame
         v = sp.Matrix(self.xSymb[7:10])  # Velocity in body frame
-        w = sp.Matrix(self.xSymb[10:13])  # Angular velocity in body frame
+        # Angular velocity in body frame according to inertial frame
+        w = sp.Matrix(self.xSymb[10:13])
         m, J = self.modelParams
 
         F = sp.Matrix(self.uSymb[:3])
@@ -172,12 +183,21 @@ class SensorData:
         vDot = sp.simplify(-self.skew(w)*v + F/m)
         wDot = sp.simplify(J.inv()*(T - self.skew(w)*J*w))
 
-        # Euler discretization 
+        # Euler discretization
         rNext = sp.simplify(r + rDot*self.dt)
-        qNext = sp.simplify(q + qDot*self.dt)
+        # See https://www.ashwinnarayan.com/post/how-to-integrate-quaternions/
+
+        wToExp = 1/2*sp.Matrix.vstack(sp.Matrix([0]), w)*self.dt
+        wExped = sp.simplify(self.qExp(wToExp))
+        
+        qNext = sp.simplify(self.qMul(wExped, q))
         vNext = sp.simplify(v + vDot*self.dt)
         wNext = sp.simplify(w + wDot*self.dt)
 
+        # print(sp.Matrix.vstack(rNext, qNext, vNext, wNext))
+        zeroSubs = {'x1': 0, 'x2': 0, 'x3':0, 'x4':1, 'x5':0, 'x6':0, 'x7':0, 'x8':0, 'x9':0, 'x10':0, 'x11':0, 'x12':0}
+        print(qNext.jacobian(self.xSymb[12:]))
+        # for row in qNext: print(row)
         return sp.Matrix.vstack(rNext, qNext, vNext, wNext)
 
     def measurementFunc(self):
