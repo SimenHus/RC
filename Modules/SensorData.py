@@ -1,7 +1,7 @@
 # Module to read and return sensor data
 
-# import adafruit_bno055 # https://docs.circuitpython.org/projects/bno055/en/latest/
-# import board # CircuitPython library
+import adafruit_bno055 # https://docs.circuitpython.org/projects/bno055/en/latest/
+import board # CircuitPython library
 import numpy as np
 import sympy as sp
 
@@ -10,7 +10,7 @@ class SensorData:
     'Module to collect and return sensor data'
 
     def __init__(self, dt):
-        # i2c = board.I2C()
+        i2c = board.I2C()
         # self.IMU = adafruit_bno055.BNO055_I2C(i2c)
 
         m = 4  # Total mass of disc

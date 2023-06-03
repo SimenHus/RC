@@ -2,6 +2,9 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from multiprocessing import Process
 
+import matplotlib
+matplotlib.use('GTK3Agg') # Allowing remote showcase of plot for ssh
+
 class Grapher(Process):
 
     def __init__(self, dt: float, queue):

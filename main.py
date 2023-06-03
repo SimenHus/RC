@@ -8,8 +8,8 @@ import numpy as np
 # Custom modules
 from Modules.ThrustAllocator import ThrustAllocator
 from Modules.Controller import Controller
-# from Modules.JoystickInterface import JoystickInterface
-from Modules.SimulatedInput import SimulatedInput
+from Modules.JoystickInterface import JoystickInterface
+# from Modules.SimulatedInput import SimulatedInput
 from Modules.SensorData import SensorData
 from Modules.LiveGrapher import Grapher
 
@@ -53,14 +53,14 @@ class Manager:
             'R': np.eye(3),
         }
 
-        self.dt = 10e-3 # Sample time in s
+        self.dt = 20e-3 # Sample time in s
 
         self.Controller = Controller()
         self.joyQ = Queue()
         self.graphQ = Queue()
 
-        # joy = JoystickInterface(joyq)
-        self.joy = SimulatedInput(self.joyQ)
+        self.joy = JoystickInterface(self.joyQ)
+        # self.joy = SimulatedInput(self.joyQ)
         self.sensorData = SensorData(self.dt) # Initialize sensor reader and kalman filter
         self.thrustAllocator = ThrustAllocator()
         self.grapher = Grapher(self.dt, self.graphQ)
@@ -114,7 +114,7 @@ class Manager:
             elapsedTime = (time() - startTime) * 1000 # Elapsed time in ms
             sleepTime = (self.dt - elapsedTime/1000) # Sleep time in s
             if sleepTime < 0: sleepTime = 0
-            print(f'Elapsed time: {elapsedTime:0.2f}ms')
+            # print(f'Elapsed time: {elapsedTime:0.2f}ms')
             sleep(sleepTime)
 
         print('Cleaning up...')

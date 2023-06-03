@@ -1,4 +1,4 @@
-from evdev import InputDevice, categorize, ecodes
+from evdev import InputDevice, ecodes
 from multiprocessing import Process
 
 class JoystickInterface(Process):
