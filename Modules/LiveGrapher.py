@@ -1,17 +1,13 @@
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from random import randint
-from multiprocessing import Process, Queue
-from time import sleep, time
+from multiprocessing import Process
 
 class Grapher(Process):
 
-    def __init__(self, dt: float, q: Queue):
+    def __init__(self, dt: float, queue):
         super().__init__()
         self.maxPoints = 100
-        self.running = True
 
-        self.q = q
         self.dt = dt
         self.t = [0]
         
@@ -19,36 +15,47 @@ class Grapher(Process):
         self.fig = plt.figure()
         self.subplots = []
 
-    def addSubplot(self, dataNames: list):
+        # Threading variables
+        self.queue = queue
+        self.daemon = True
+        self.running = True
+
+    def addSubplot(self, data: dict):
         index = int(f'22{len(self.subplots)+1}')
         ax = self.fig.add_subplot(index)
+
+        newData = {}
+        for name, inits in data.items():
+            for i, dataset in enumerate(inits):
+                label = f'{name}_{i+1}'
+                ax.plot(self.t, [dataset], label=label)
+                newData.update({label: [dataset]})
+
         ax.set_xlim(self.t[0], self.maxPoints*self.dt)
-        inits = [0]
-        dataElements = {elem: inits for elem in dataNames}
-
-        for elem, value in dataElements.items():
-            ax.plot(self.t, value, label=elem)
-
-        ax.set_xlim(self.t[0], self.maxPoints)
+        ax.set_xlabel('t [s]')
         ax.grid()
         ax.legend()
 
-        self.data.update(dataElements)
-
+        self.data.update(newData)
         self.subplots.append(ax)
         
 
     def run(self):
         ani = animation.FuncAnimation(self.fig,
                                       self.anim,
-                                      interval=100,
+                                      interval=10,
                                       cache_frame_data=False)
         
-        plt.show()
+        self.fig.show()
+        self.queue.put('ready')
+        while self.running: plt.pause(0.01)
+        plt.close()
 
     def anim(self, *args):
-        while not self.q.empty():
-            self.addData(self.q.get())
+        while not self.queue.empty():
+            msg = self.queue.get()
+            if msg[0] == 'data': self.addData(msg[1])
+            elif msg[0] == 'exit': self.running = False
 
         for ax in self.subplots:
             ylim = ax.get_ylim()
@@ -56,65 +63,24 @@ class Grapher(Process):
             for line in ax.get_lines():
                 lineData = line.get_ydata()
                 if min(lineData) < ylim[0]:
-                    ax.set_ylim(min(lineData), ylim[1])
+                    ax.set_ylim(min(lineData)*1.5, ylim[1])
                 if max(lineData) > ylim[1]:
-                    ax.set_ylim(ylim[0], max(lineData))
+                    ax.set_ylim(ylim[0], max(lineData)*1.5)
                 line.set_data(self.t, self.data[line.get_label()])
-
         
 
     def addData(self, data: dict):
         
-        size = len(data[list(data)[-1]])
-        
-        for _ in range(size): self.t.append(self.t[-1]+self.dt)
-        if len(self.t) > self.maxPoints: self.t = self.t[size:]
+        self.t.append(self.t[-1]+self.dt)
+        if len(self.t) > self.maxPoints: self.t = self.t[1:]
 
-        for elem, value in data.items():
-            self.data[elem] = self.data[elem] + value
-            if len(self.data[elem]) > self.maxPoints:
-                self.data[elem] = self.data[elem][size:]
+        for elem, valueArray in data.items():
+            for i, value in enumerate(valueArray):
+                label = f'{elem}_{i+1}'
+                if label not in self.data: break
+                self.data[label] = self.data[label] + [value]
+                if len(self.data[label]) > self.maxPoints:
+                    self.data[label] = self.data[label][1:]
 
     def cleanup(self):
-        self.running = False
-        print('wow')
-
-tings = ['s', 'k']
-tings2 = ['x', 'y', 'z']
-tings3 = ['a', 'b']
-
-queue = Queue()
-app = Grapher(1, queue)
-
-app.addSubplot(tings)
-app.addSubplot(tings2)
-app.addSubplot(tings3)
-
-
-def main():
-    for _ in range(10):
-        startTime = time()
-
-
-        sampleSize = randint(1, 1)
-        uptDict = {
-            's': [randint(-100, 100)]*sampleSize,
-            'k': [randint(-120, 80)]*sampleSize,
-            'x': [randint(-100, 600)]*sampleSize,
-            'y': [randint(-50, 130)]*sampleSize,
-            'z': [randint(-120, 120)]*sampleSize,
-            'a': [randint(-60, 60)]*sampleSize,
-            'b': [randint(-40, 80)]*sampleSize,
-        }
-        queue.put(uptDict)
-
-
-        elapsedTime = (time() - startTime)*1000
-        print(f'Elapsed time: {elapsedTime:0.2f}ms')
-        sleep(0.1)
-
-if __name__ == '__main__':
-    app.start()
-    main()
-    app.cleanup()
-    app.join()
+        self.queue.put(['exit'])

@@ -56,8 +56,8 @@ class ThrustAllocator:
         V2 = 1/2*(Vs - Vd)
 
         Volts = [V1, V2]
-        print(f'\n\n--- Motor 1 ----- Motor 2 ---')
-        print(f'--- {V1} ----- {V2} ---')
+        # print(f'\n\n--- Motor 1 ----- Motor 2 ---')
+        # print(f'--- {V1} ----- {V2} ---')
         # for V, motor in zip(Volts, self.Motors): motor.setVoltage(V)
 
 

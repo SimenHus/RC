@@ -42,7 +42,7 @@ class SensorData:
         self.H = sp.lambdify([self.xSymb], self.measurementFunc().jacobian(self.xSymb), modules='numpy') # Measurement function jacobian
 
         self.numR = sp.lambdify([self.xSymb[3:7]], self.R(self.xSymb[3:7]), modules='numpy')
-        self.observability() # Check observability of system
+        # self.observability() # Check observability of system
 
 
     def sample(self, u):
@@ -201,6 +201,3 @@ class SensorData:
             [-vector[1], vector[0], 0]
         ])
         return skewMatrix
-
-
-app = SensorData(1)

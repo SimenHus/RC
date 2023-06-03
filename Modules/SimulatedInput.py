@@ -1,9 +1,9 @@
-import threading
+from multiprocessing import Process
 from pynput import keyboard
 from pynput.keyboard import Key
 from time import sleep
 
-class SimulatedInput(threading.Thread):
+class SimulatedInput(Process):
     def __init__(self, queue):
         super().__init__(name='Joy')
 
@@ -65,7 +65,7 @@ class SimulatedInput(threading.Thread):
         listener = keyboard.Listener(on_press=self.onPress, on_release=self.onRelease)
         listener.start()
 
-        print('Keyboard listener ready...')
+        self.queue.put('ready')
         while self.running: sleep(1)
         listener.stop()
         listener.join()

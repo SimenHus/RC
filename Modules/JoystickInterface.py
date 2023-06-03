@@ -1,9 +1,9 @@
 from evdev import InputDevice, categorize, ecodes
-import threading
+from multiprocessing import Process
 
-class JoystickInterface(threading.Thread):
+class JoystickInterface(Process):
     def __init__(self, queue):
-        super().__init__(name='Joy')
+        super().__init__()
         self.gamepad = InputDevice('/dev/input/event3')
 
         # Map button value to name
@@ -37,6 +37,7 @@ class JoystickInterface(threading.Thread):
         self.running = True
 
     def run(self):
+        self.queue.put('ready')
         for event in self.gamepad.read_loop():
             if not self.running: break
             if event.type == ecodes.EV_SYN: continue

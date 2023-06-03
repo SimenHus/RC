@@ -1,6 +1,6 @@
 # Native imports
 from time import sleep, time
-from queue import Queue
+from multiprocessing import Queue
 from threading import Thread
 import numpy as np
 
@@ -40,40 +40,55 @@ class Manager:
         # Controller vars
         self.dState = {
             'pos': np.array([0]*3),
-            'angle': np.array([0]*3),
+            'angle': np.array([1] + [0]*3),
             'linVel': np.array([0]*3),
             'angVel': np.array([0]*3),
         }
 
         self.state = {
             'x': np.array([0]*3),
-            'q': np.array([0]*4),
+            'q': np.array([1] + [0]*3),
             'v': np.array([0]*3),
             'w': np.array([0]*3),
             'R': np.eye(3),
         }
 
-        self.T = 1000 # Sample time in ms
+        self.dt = 10e-3 # Sample time in s
 
         self.Controller = Controller()
         self.joyQ = Queue()
+        self.graphQ = Queue()
 
         # joy = JoystickInterface(joyq)
         self.joy = SimulatedInput(self.joyQ)
-        self.sensorData = SensorData(self.T/1000) # Initialize sensor reader and kalman filter
+        self.sensorData = SensorData(self.dt) # Initialize sensor reader and kalman filter
         self.thrustAllocator = ThrustAllocator()
-        self.grapher = Grapher()
+        self.grapher = Grapher(self.dt, self.graphQ)
+        self.grapher.addSubplot({'x': self.state['x']})
+        self.grapher.addSubplot({'q': self.state['q']})
+        self.grapher.addSubplot({'v': self.state['v']})
+        self.grapher.addSubplot({'w': self.state['w']})
 
         self.running = True
         self.idleMotor = True
 
     def run(self):
-
-        threads = [self.joy]
         QManager = Thread(target=self.QManager)
 
+        threads = [self.grapher, self.joy]
+
+        print('Initiating graphing module...')
+        self.grapher.start()
+        self.graphQ.get()
+        print('Graphing module ready')
+        
+        print('Initiating joystick module...')
+        self.joy.start()
+        self.joyQ.get()
+        print('Joystick module ready')
+
         QManager.start()
-        for t in threads: t.start()
+
         self.idleMotor = False # For testing purposes
 
         thrust = np.array([0]*6)
@@ -81,15 +96,23 @@ class Manager:
         while self.running:
             startTime = time()
 
-            self.state = self.sensorData.sample(self.state, thrust) # Sample filter
-            thrust = self.Controller.sample(self.state, self.dState) # Sample controller
+            # self.state = self.sensorData.sample(self.state, thrust) # Sample filter
+            self.state = {
+                'x': np.random.rand(3)*10,
+                'q': np.random.rand(4)*1,
+                'v': np.random.rand(3)*5,
+                'w': np.random.rand(3)*10,
+                'R': np.eye(3),
+            }
+            self.graphQ.put(['data', self.state])
 
+            thrust = self.Controller.sample(self.state, self.dState) # Sample controller
 
             if self.idleMotor: thrust = np.array([0]*6) # Stop motors if idle
             self.thrustAllocator.allocateThrust(thrust)
 
             elapsedTime = (time() - startTime) * 1000 # Elapsed time in ms
-            sleepTime = (self.T - elapsedTime) / 1000 # Sleep time in s
+            sleepTime = (self.dt - elapsedTime/1000) # Sleep time in s
             if sleepTime < 0: sleepTime = 0
             print(f'Elapsed time: {elapsedTime:0.2f}ms')
             sleep(sleepTime)
