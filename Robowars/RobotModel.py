@@ -1,0 +1,82 @@
+import numpy as np
+import sympy as sp
+
+class RobotModel:
+    def __init__(self, dt, x0, P0=np.eye(13)*0.1):
+        with open('C:\\Users\\simen\\Desktop\\Prog\\Python\\Robowars\\sensordata\\Rv.npy', 'rb') as f:
+            a = np.load(f)
+        self.Rv = np.cov(a, rowvar=False)  # Measurement noise
+        self.Qw = np.eye(13)*5e-2 # Process noise
+        self.x0 = x0
+        self.P0 = P0
+        self.u0 = np.array([0]*6)
+        m = 2.5  # Total mass of disc
+        discR = 0.05  # Radius of disc
+        Jc = sp.eye(3)*1/2*m*discR  # Inertia of disc
+        self.params = [m, discR, Jc]
+        self.dt = dt
+        self.nx = len(self.x0)
+
+        self.xSymb = sp.symbols(f'x1:{14}')  # State vector symbolic
+        self.uSymb = sp.symbols(f'u1:{7}')  # Input vector symbolic
+ 
+    def stateFunc(self):
+        r = sp.Matrix(self.xSymb[:3])  # Position of body frame
+        q = sp.Matrix(self.xSymb[3:7])  # Orientation of body frame
+        v = sp.Matrix(self.xSymb[7:10])  # Velocity in body frame
+        w = sp.Matrix(self.xSymb[10:13])  # Angular velocity in body frame
+        m, discR, J = self.params
+
+        F = sp.Matrix(self.uSymb[:3])
+        T = sp.Matrix(self.uSymb[3:])
+
+        nu, e1, e2, e3 = q
+        eps = sp.Matrix(q[1:])
+
+        R = sp.Matrix([
+            [nu**2 + e1**2 - e2**2 - e3**2, 2 *
+                (e1*e2 - nu*e3), 2*(e1*e3 + nu*e2)],
+            [2*(e1*e2 + nu*e3), nu**2 - e1**2 +
+                e2**2 - e3**2, 2*(e2*e3 - nu*e1)],
+            [2*(e1*e3 - nu*e2), 2*(e2*e3 + nu*e1), nu**2 - e1**2 - e2**2 + e3**2]
+        ])
+
+        U = sp.Matrix.vstack(
+            -eps.T,
+            nu*sp.eye(3) + self.skew(eps)
+        )
+
+        rDot = sp.simplify(R*v)
+        qDot = sp.simplify(1/2*U*w)
+        vDot = sp.simplify(-self.skew(w)*v + F/m)
+        wDot = sp.simplify(J.inv()*(T - self.skew(w)*J*w))
+
+        # Euler discretization
+        rNext = sp.simplify(r + rDot*self.dt)
+        qNext = sp.simplify(q + qDot*self.dt)
+        vNext = sp.simplify(v + vDot*self.dt)
+        wNext = sp.simplify(w + wDot*self.dt)
+
+        return sp.Matrix.vstack(rNext, qNext, vNext, wNext)
+
+    def measurementFunc(self):
+        q = sp.Matrix.zeros(4, self.nx)
+        # v = sp.Matrix.zeros(3, self.nx)
+        w = sp.Matrix.zeros(3, self.nx)
+
+        q[:, 3:7] = sp.Matrix.eye(4)
+        # v[:, 7:10] = sp.Matrix.eye(3)
+        w[:, 10:13] = sp.Matrix.eye(3)
+
+        H = sp.Matrix.vstack(q, w)
+
+        return H*sp.Matrix(self.xSymb)
+
+    def skew(self, vector):
+
+        skewMatrix = sp.Matrix([
+            [0, -vector[2], vector[1]],
+            [vector[2], 0, -vector[0]],
+            [-vector[1], vector[0], 0]
+        ])
+        return skewMatrix

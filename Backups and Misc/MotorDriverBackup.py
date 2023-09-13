@@ -63,4 +63,3 @@ class DCMotor:
 
     def cleanup(self):
         self.Motor.stop()
-        # Legg til strøm kontroll ved endring av polaritet
