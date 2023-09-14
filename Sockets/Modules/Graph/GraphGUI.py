@@ -1,5 +1,5 @@
 import pyqtgraph as pg
-from PySide6.QtWidgets import (QApplication, QComboBox, QGroupBox,
+from PySide6.QtWidgets import (QApplication, QComboBox, QGroupBox, QWidgetItem,
                                QHBoxLayout, QLabel, QMainWindow, QPushButton,
                                QSizePolicy, QVBoxLayout, QWidget, QSpinBox,
                                QTextBrowser, QDoubleSpinBox, QCheckBox)
@@ -32,7 +32,7 @@ class GraphGUI:
         # Define sub-settings and layouts
 
         # Manual control options
-        lims = (-1000, 1000)
+        lims = (-10000, 10000)
         self.manualXRangeMin = QDoubleSpinBox()
         self.manualXRangeMin.setMinimum(lims[0])
         self.manualXRangeMin.setMaximum(lims[1])
@@ -107,18 +107,24 @@ class GraphGUI:
         self.layout.addWidget(self.graphSettings, 20)
 
 
-    def _setupShowHideSection(self, states):
+    def _setupShowHideSection(self, states: dict):
         vLayout = QVBoxLayout()
 
         self.toggleAllButton = QPushButton('Toggle all')
 
-        statesPerRow = 8 # States per row before linechange
-        for i in range((len(states)-1)//statesPerRow+1): # If more than statesPerRow states, repeat for-loop
+        for group, elems in states.items():
             row = QHBoxLayout()
-            for state in states[statesPerRow*i:statesPerRow*(1+i)]:
+            toggleGroup = QPushButton(f'Toggle {group}')
+            toggleGroup.pressed.connect(lambda g=group: self.showHideToggleGroup(g))
+            groupHead = QVBoxLayout()
+            groupHead.addWidget(QLabel(f'{group}:'), 40)
+            groupHead.addWidget(toggleGroup, 40)
+
+            row.addLayout(groupHead)
+            for i, state in enumerate(elems):
                 stateBox = QCheckBox()
                 stateBox.setChecked(True)
-                stateBox.stateChanged.connect(lambda val, name=state: self.showHideStatePressed(name, val))
+                stateBox.stateChanged.connect(lambda val, name=group, index=i: self.showHideStatePressed(name, index, val))
                 
                 itemLayout = QVBoxLayout()
                 itemLayout.addWidget(QLabel(f'{state}:'), 40)
@@ -132,10 +138,21 @@ class GraphGUI:
     def _resetGraph(self):
         self.graphSettingsLayout.removeWidget(self.showHideBox)
         self.graphWidget.clear()
+        self.__resetShowHideSection()
+        self.graphSettingsLayout.addWidget(self.showHideBox)
+
+    def __resetShowHideSection(self):
         self.showHideBox.deleteLater()
         self.showHideBox = QGroupBox('Show/Hide states')
         self.showHideBox.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
-        self.graphSettingsLayout.addWidget(self.showHideBox)
 
     def _showHideToggleAll(self):
         for box in self.showHideBox.findChildren(QCheckBox): box.setChecked(self.showHideAll)
+        
+
+    def _showHideToggleGroup(self, group):
+        for state in self.showHideBox.findChildren(QVBoxLayout):
+            if type(state.itemAt(0)) != QWidgetItem: continue
+            if group in state.itemAt(0).widget().text():
+                if type(state.itemAt(1).widget()) == QCheckBox: 
+                    state.itemAt(1).widget().setChecked(self.showHideGroup[group])

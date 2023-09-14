@@ -47,8 +47,8 @@ class MainWindow(QMainWindow):
 
         # Main layout
         layout = QHBoxLayout()
-        layout.addWidget(self.graphGroup, 70)
-        layout.addWidget(self.clientGroup, 30)
+        layout.addWidget(self.graphGroup, 90)
+        layout.addWidget(self.clientGroup, 10)
 
         # Central widget
         widget = QWidget(self)

@@ -34,8 +34,13 @@ class GraphHandler(GraphGUI):
         self._showHideToggleAll()
 
     @Slot()
-    def showHideStatePressed(self, state, checked):
-        elem = self.graphElements[state]
+    def showHideToggleGroup(self, group):
+        self.showHideGroup[group] = not self.showHideGroup[group]
+        self._showHideToggleGroup(group)
+
+    @Slot()
+    def showHideStatePressed(self, state, index, checked):
+        elem = self.graphElements[state][index]
         if checked: self.graphWidget.addItem(elem)
         else: self.graphWidget.removeItem(elem)
 
@@ -60,39 +65,43 @@ class GraphHandler(GraphGUI):
         self.autoscrollRange = range # Set the autoscroll range
 
     @Slot()
-    def dataMessage(self, msg):
-        data = msg['Data']
-        # Sort message category
-        if msg['MessageType'] == 'Init': self.initStates(data) # Initialize
-        elif msg['MessageType'] == 'Data': self.updateGraph(data) # Update graph
+    def dataMessage(self, data: dict):
 
-        
-    def updateGraph(self, data):
-        if len(self.yAxis) < 1: return # If states have not been initialized, do nothing
-        self.xAxis = np.append(self.xAxis, self.xAxis[-1] + 1)  # Add a new value 1 higher than the last.
+        if len(self.yAxis) < len(data): self.initStates(data) # If any states have not been initialized, initialize
+        steps = data[list(data.keys())[0]].shape[0]
 
-        for state in data: # Update states with new measurements
-            self.yAxis[state['Name']] = np.append(self.yAxis[state['Name']], state['Measurement'])
+        for _ in range(steps):
+            self.xAxis = np.append(self.xAxis, self.xAxis[-1] + 1)  # Add a new value 1 higher than the last.
 
-        for name, elem in self.graphElements.items():
-            elem.setData(self.xAxis, self.yAxis[name]) # Update graph elements
+        for state, meas in data.items(): # Update states with new measurements
+            self.yAxis[state] = np.vstack((self.yAxis[state], meas))
+
+        for name, group in self.graphElements.items():
+            for i, elem in enumerate(group):
+                elem.setData(self.xAxis, self.yAxis[name][:, i]) # Update graph elements
             
         if self.autoscroll: # If autoscrolling is active, update graph range
             xRange = (self.xAxis[-1]-self.autoscrollRange, self.xAxis[-1]) # Define the x-axis range
             yRange = self.graphWidget.getViewBox().childrenBounds()[1] # Get graph elements [min, max] y-values
             self.graphWidget.setRange(xRange=xRange, yRange=yRange)
 
-    def initStates(self, states):
-        if len(self.yAxis) > 0: return # If already initialized, return
+    def initStates(self, states: dict):
         # Function to initialize variables from client data
-        names = []
-        for state in states:
-            name = state['Name'] # Variable name
-            names.append(name)
-            self.yAxis[name] = state['x0'] # Define initial state for variable
-            # Graph the initiale state of the variable and store the plot element
-            self.graphElements[name] = self.graphWidget.plot(self.xAxis, self.yAxis[name], connect='finite', name=name)
+        stateHierarchy = {}
+        self.showHideGroup = {}
+        color = 0
+        for state, value in states.items():
+            stateHierarchy[state] = [f'{state}_{i+1}' for i in range(value.shape[1])] # Add names to hierarchy for the state toggle buttons
+            self.showHideGroup[state] = True
+            if state in self.yAxis: continue # If state already initialized, skip
+            self.yAxis[state] = np.ones((len(self.xAxis), value.shape[1]))*np.inf # Store initial elements of variable
+            # Graph the initial state of the variable and store the plot element
+            newGraphElements = []
+            for i in range(value.shape[1]):
+                newGraphElements.append(self.graphWidget.plot(self.xAxis, self.yAxis[state][:, i], pen=color, connect='finite', name=f'{state}_{i+1}'))
+                color += 1
+            self.graphElements[state] = newGraphElements
         
         self.showHideAll = True
-        self._setupShowHideSection(names)
+        self._setupShowHideSection(stateHierarchy)
         self.toggleAllButton.clicked.connect(self.showHideToggleAll)
