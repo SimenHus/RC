@@ -67,13 +67,13 @@ class RobotModel:
 
         normW = sp.sqrt(w[0]**2 + w[1]**2 + w[2]**2)
         rDot = sp.simplify(R*v)
-        qDot = sp.simplify(1/2*U*w) # See https://hal.science/hal-01122406/document (227)
+        qDot = sp.simplify(qFromAngleAxis(w/normW, normW*self.dt)) # See https://hal.science/hal-01122406/document (227)
         vDot = sp.simplify(-self.skew(w)*v + F/m)
         wDot = sp.simplify(J.inv()*(T - self.skew(w)*J*w))
 
         # Euler discretization
         rNext = sp.simplify(r + rDot*self.dt)
-        qNext = sp.simplify(q + qDot*self.dt) # See https://hal.science/hal-01122406/document (227)
+        qNext = sp.simplify(quaternionMultiplication(q, qDot)) # See https://hal.science/hal-01122406/document (227)
         vNext = sp.simplify(v + vDot*self.dt)
         wNext = sp.simplify(w + wDot*self.dt)
 

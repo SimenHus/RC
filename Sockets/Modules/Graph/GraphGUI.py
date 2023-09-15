@@ -150,7 +150,7 @@ class GraphGUI:
         for box in self.showHideBox.findChildren(QCheckBox): box.setChecked(self.showHideAll)
         
 
-    def _showHideToggleGroup(self, group):
+    def _showHideToggleGroup(self, group: str):
         for state in self.showHideBox.findChildren(QVBoxLayout):
             if type(state.itemAt(0)) != QWidgetItem: continue
             if group in state.itemAt(0).widget().text():

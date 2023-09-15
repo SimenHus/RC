@@ -4,7 +4,9 @@ import numpy as np
 import sympy as sp
 
 import sys
-sys.path.insert(0, "C:\\Users\\simen\\Desktop\\Prog\\Python")
+import os
+filePath = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, f'{filePath}\\..')
 from CustomObjs.Quaternion import Quaternion
 
 class SensorData:
@@ -40,7 +42,7 @@ class SensorData:
 
         # Convert sensor readings to y
         r = np.arctan2(accRaw[1], accRaw[2])
-        p = np.arctan2(accRaw[0], np.sqrt(accRaw[1]**2 + accRaw[2]**2))
+        p = -np.arctan2(accRaw[0], np.sqrt(accRaw[1]**2 + accRaw[2]**2))
         # Assuming IMU in CoG
 
         magX = magRaw[0]*np.cos(p) + magRaw[1]*np.sin(r) * \

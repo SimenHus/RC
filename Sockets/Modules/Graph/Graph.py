@@ -34,12 +34,12 @@ class GraphHandler(GraphGUI):
         self._showHideToggleAll()
 
     @Slot()
-    def showHideToggleGroup(self, group):
+    def showHideToggleGroup(self, group: str):
         self.showHideGroup[group] = not self.showHideGroup[group]
         self._showHideToggleGroup(group)
 
     @Slot()
-    def showHideStatePressed(self, state, index, checked):
+    def showHideStatePressed(self, state: str, index: int, checked: bool):
         elem = self.graphElements[state][index]
         if checked: self.graphWidget.addItem(elem)
         else: self.graphWidget.removeItem(elem)
@@ -61,24 +61,22 @@ class GraphHandler(GraphGUI):
         self.autoscroll = not self.autoscroll # Toggle autoscrolling functionality
     
     @Slot()
-    def setAutoscrollRange(self, range):
+    def setAutoscrollRange(self, range: int):
         self.autoscrollRange = range # Set the autoscroll range
 
     @Slot()
     def dataMessage(self, data: dict):
-
+        
         if len(self.yAxis) < len(data): self.initStates(data) # If any states have not been initialized, initialize
+
         steps = data[list(data.keys())[0]].shape[0]
+        currentX = self.xAxis[-1]
+        self.xAxis = np.hstack((self.xAxis, np.arange(currentX+1, currentX+steps+1, 1)))
 
-        for _ in range(steps):
-            self.xAxis = np.append(self.xAxis, self.xAxis[-1] + 1)  # Add a new value 1 higher than the last.
-
-        for state, meas in data.items(): # Update states with new measurements
-            self.yAxis[state] = np.vstack((self.yAxis[state], meas))
-
-        for name, group in self.graphElements.items():
-            for i, elem in enumerate(group):
-                elem.setData(self.xAxis, self.yAxis[name][:, i]) # Update graph elements
+        for group, items in self.graphElements.items():
+            self.yAxis[group] = np.vstack((self.yAxis[group], data[group])) # Update states with new measurements
+            for i, elem in enumerate(items):
+                elem.setData(self.xAxis, self.yAxis[group][:, i]) # Update graph elements
             
         if self.autoscroll: # If autoscrolling is active, update graph range
             xRange = (self.xAxis[-1]-self.autoscrollRange, self.xAxis[-1]) # Define the x-axis range

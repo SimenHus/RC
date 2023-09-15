@@ -3,6 +3,11 @@ import numpy as np
 from SensorData import SensorData
 from RobotModel import RobotModel
 
+import sys
+import os
+
+filePath = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, f'{filePath}\\..')
 from CustomObjs.Quaternion import Quaternion
 
 
@@ -16,33 +21,51 @@ class DataAnalyzis:
         GYRO_RANGE = MAX_VAL/2000
         MAGNET_RANGE = MAX_VAL/4900
 
-        Rx = np.array([
-            [1, 0, 0],
-            [0, -1, 0],
-            [0, 0, -1]
-        ])
+        def Rx(theta):
+            Rx = np.array([
+                [1, 0, 0],
+                [0, np.cos(theta), -np.sin(theta)],
+                [0, np.sin(theta), np.cos(theta)]
+            ])
+            return Rx
+
+        def Rz(theta):
+            Rz = np.array([
+                [np.cos(theta), -np.sin(theta), 0],
+                [np.sin(theta), np.cos(theta), 0],
+                [0, 0, 1]
+            ])
+            return Rz
 
         data = {}
         data['t'] = (a[:, 0] - a[0, 0])/1000
         data['acc'] = a[:, 1:4]/ACCEL_RANGE
         data['gyro'] = a[:, 4:7]/GYRO_RANGE*(np.pi/180)
         data['mag'] = a[:, 7:10]/MAGNET_RANGE
+        data['mag'] = (Rx(np.pi)@data['mag'].T).T
 
-        data['mag'] = (Rx@data['mag'].T).T
+        def rotateData(data, R):
+            newData = {}
+            for key, value in data.items():
+                if len(value.shape) < 2: newData[key] = value
+                else: newData[key] = (R@value.T).T
+            return newData
+        
+        data = rotateData(data, Rz(np.pi/2))
 
         return data
 
 
-    def getYawFromMag(self, magRaw, rRaw, pRaw):
-        magX = magRaw[:, 0]*np.cos(pRaw) + magRaw[:, 1]*np.sin(rRaw) * \
-            np.sin(pRaw) + magRaw[:, 2]*np.cos(rRaw)*np.sin(pRaw)
-        magY = -magRaw[:, 1]*np.cos(rRaw) + magRaw[:, 2]*np.sin(rRaw)
+    def getYawFromMag(self, mag, r, p):
+        magX = mag[:, 0]*np.cos(p) + mag[:, 1]*np.sin(r) * \
+            np.sin(p) + mag[:, 2]*np.cos(r)*np.sin(p)
+        magY = -mag[:, 1]*np.cos(r) + mag[:, 2]*np.sin(r)
 
-        yRaw = -np.arctan2(magY, magX)
+        yRaw = np.arctan2(magY, magX)
         return yRaw
     
 
-    def plotData(self, t, data, plotInfo):
+    def plotData(self, t, data, plotInfo, title='title'):
 
         fig, axs = plt.subplots(len(plotInfo), 3)
         for i, categories in plotInfo.items():
@@ -54,23 +77,21 @@ class DataAnalyzis:
             for ax in row:
                 ax.grid()
                 ax.legend()
+        plt.suptitle(title)
         plt.show()
 
+    def getEuler(self, data):
+        acc = data['acc']
+        mag = data['mag']
+        if len(acc.shape) < 2: acc = acc.reshape((1, 3))
+        if len(mag.shape) < 2: mag = mag.reshape((1, 3))
+        r = np.arctan2(acc[:, 1], acc[:, 2])
+        p = -np.arctan2(acc[:, 0], np.sqrt(acc[:, 1]**2 + acc[:, 2]**2))
+        y = obj.getYawFromMag(mag, r, p)
+        return r, p, y
 
     def initQuat(self, data):
-        accRaw = data['acc']
-        magRaw = data['mag']
-        # If IMU is not in the CoG, transformation needs to be done
-
-        # Convert sensor readings to y
-        r = np.arctan2(accRaw[1], np.sqrt(accRaw[0]**2 + accRaw[2]**2))
-        p = np.arctan2(accRaw[0], np.sqrt(accRaw[1]**2 + accRaw[2]**2))
-        # Assuming IMU in CoG
-
-        mag_x = magRaw[0]*np.cos(p) + magRaw[1]*np.sin(r) * \
-            np.sin(p) + magRaw[2]*np.cos(r)*np.sin(p)
-        mag_y = magRaw[1]*np.cos(r) - magRaw[2]*np.sin(r)
-        y = np.arctan2(-mag_y, mag_x)
+        r, p, y = self.getEuler(data)
 
         qMeasured = Quaternion([r, p, y])
         qMeasured.normalize()
@@ -79,40 +100,22 @@ class DataAnalyzis:
 
     def storeRv(self, data):
         sampleSize = data['acc'].shape[0]
-        accRaw = data['acc']
-        magRaw = data['mag']
-        gyroRaw = data['gyro']
+        gyro = data['gyro']
 
-        rRaw = np.arctan2(accRaw[:, 1], accRaw[:, 2])
-        pRaw = np.arctan2(accRaw[:, 0], np.sqrt(accRaw[:, 1]**2 + accRaw[:, 2]**2))
+        r, p, y = self.getEuler(data)
 
-        yRaw = self.getYawFromMag(magRaw, rRaw, pRaw)
-
-        def fromEulerAngles(euler):
-            r, p, y = euler
-            def c(_): return np.cos(_)
-            def s(_): return np.sin(_)
-
-            # Euler angles to quaternions
-            quat = np.array([
-                c(r)*c(p)*c(y) + s(r)*s(p)*s(y),
-                s(r)*c(p)*c(y) - c(r)*s(p)*s(y),
-                c(r)*s(p)*c(y) + s(r)*c(p)*s(y),
-                c(r)*c(p)*s(y) - s(r)*s(p)*c(y),
-            ]).reshape((r.shape[0], 4))
-            return quat
-
-        quatRaw = fromEulerAngles((rRaw, pRaw, yRaw))
+        quat = np.vstack([Quaternion((r[i], p[i], y[i])).q() for i in range(len(r))])
 
         sample = np.zeros((sampleSize, 7))
-        sample[:, :4] = quatRaw
-        sample[:, 4:] = gyroRaw
-        with open('C:\\Users\\simen\\Desktop\\Prog\\Python\\Robowars\\sensordata\\Rv.npy', 'wb') as f:
+        sample[:, :4] = quat
+        sample[:, 4:] = gyro
+        with open(f'{filePath}\\sensordata\\Rv.npy', 'wb') as f:
             np.save(f, sample)
 
 
-pth = 'C:\\Users\\simen\\Desktop\\Prog\\Python\\Robowars\\sensordata'
-file = 'test-til-simen\\spinning.npy'
+pth = f'{filePath}\\sensordata'
+title = 'positiv-yaw'
+file = f'test-til-simen\\{title}.npy'
 obj = DataAnalyzis()
 rawData = obj.openFile(pth, file)
 # obj.storeRv(rawData)
@@ -140,24 +143,16 @@ for i in range(1, len(rawData['t'])):
 
 
 
-accRaw = rawData['acc']
-magRaw = rawData['mag']
-
-rRaw = np.arctan2(accRaw[:, 1], accRaw[:, 2])
-pRaw = np.arctan2(accRaw[:, 0], np.sqrt(accRaw[:, 1]**2 + accRaw[:, 2]**2))
-yRaw = obj.getYawFromMag(magRaw, rRaw, pRaw)
-
-filteredData['rawEuler'] = np.vstack((rRaw, pRaw, yRaw)).T
+filteredData['rawEuler'] = np.vstack(obj.getEuler(rawData)).T
 filteredData['rawW'] = rawData['gyro']
 filteredData['rawMag'] = rawData['mag']
 
 plotInfo = {
     0: {'rawEuler': ['Raw roll', 'Raw pitch', 'Raw yaw']},
-    # 0: {'euler': ['Roll', 'Pitch', 'Yaw']},
-        # 'rawEuler': ['Raw roll', 'Raw pitch', 'Raw yaw']},
+    0: {'euler': ['Roll', 'Pitch', 'Yaw'],
+        'rawEuler': ['Raw roll', 'Raw pitch', 'Raw yaw']},
     1: {'rawW': ['Raw rollrate', 'Raw pitchrate', 'Raw yawrate'],
         'w': ['Rollrate', 'Pitchrate', 'Yawrate']},
-    2: {'rawMag': ['magx', 'magy', 'magz']} 
 }
-obj.plotData(rawData['t'], filteredData, plotInfo)
+obj.plotData(rawData['t'], filteredData, plotInfo, title=title)
 

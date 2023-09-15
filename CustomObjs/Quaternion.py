@@ -13,20 +13,24 @@ class Quaternion:
     def z(self): return self.__q[3]
 
     def fromEulerAngles(self, euler):
+        # Using 3-2-1 euler sequence
         r, p, y = euler
-        def c(_): return np.cos(_)
-        def s(_): return np.sin(_)
+
+        cr, sr = np.cos(r/2), np.sin(r/2)
+        cp, sp = np.cos(p/2), np.sin(p/2)
+        cy, sy = np.cos(y/2), np.sin(y/2)
 
         # Euler angles to quaternions
         quat = np.array([
-            c(r)*c(p)*c(y) + s(r)*s(p)*s(y),
-            s(r)*c(p)*c(y) - c(r)*s(p)*s(y),
-            c(r)*s(p)*c(y) + s(r)*c(p)*s(y),
-            c(r)*c(p)*s(y) - s(r)*s(p)*c(y),
+            cr*cp*cy + sr*sp*sy,
+            sr*cp*cy - cr*sp*sy,
+            cr*sp*cy - sr*sp*cy,
+            cr*cp*sy - sr*sp*cy
         ]).reshape((4,))
         return quat
 
     def toEulerAngles(self):
+        # To 3-2-1 euler sequence
         qw, qx, qy, qz = self.__q
         roll = np.arctan2(2*(qw*qx+qy*qz), 1-2*(qx**2+qy**2))
         pitch = -np.pi/2 + 2*np.arctan2(1+2*(qw*qy-qx*qz), 1-2*(qw*qy-qx*qz))
@@ -72,7 +76,7 @@ class Quaternion:
 
         m1 = np.vstack((
             np.hstack((nu1, -eps1.T)),
-            np.hstack((eps1.reshape((3, 1)), nu1*np.eye(3) + self.skew(eps2)))
+            np.hstack((eps1.reshape((3, 1)), nu1*np.eye(3) + self.skew(eps1)))
         ))
         m2 = np.hstack((nu2, eps2))
         return m1@m2
@@ -96,4 +100,3 @@ class Quaternion:
         if type(obj) == Quaternion: return self.quaternionMultiplication(self.__q, obj.q())
         if type(obj) == np.ndarray and len(obj) == 3: return self.coordinateTransform(self.__q, obj)
         if type(obj) == float or int: return self.__q*obj
-    
