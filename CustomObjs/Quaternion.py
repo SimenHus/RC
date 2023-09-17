@@ -4,6 +4,7 @@ import numpy as np
 class Quaternion:
     def __init__(self, q0=np.array([1, 0, 0, 0])):
         if len(q0) == 3: q0 = self.fromEulerAngles(q0)
+        elif q0.dtype == 'int32': q0 = q0.astype('float64')
         self.__q = self.normalize(q0)
 
     def q(self): return self.__q
@@ -29,13 +30,47 @@ class Quaternion:
         ]).reshape((4,))
         return quat
 
-    def toEulerAngles(self):
-        # To 3-2-1 euler sequence
+    def toEulerAngles(self, order='ZYX'):
+        qw, qx, qy, qz = self.__q
+        if order=='ZYX':
+            # To 3-2-1 euler sequence
+            roll = np.arctan2(2*(qw*qx+qy*qz), 1-2*(qx**2+qy**2))
+            pitch = -np.pi/2 + 2*np.arctan2(1+2*(qw*qy-qx*qz), 1-2*(qw*qy-qx*qz))
+            yaw = np.arctan2(2*(qw*qz+qx*qy), 1-2*(qy**2+qz**2))
+        if order=='XYZ':
+            # 1-2-3 sequence
+            roll = np.arctan2(2*(qy*qz+qw*qx), qw**2-qx**2-qy**2+qz**2)
+            pitch = np.arcsin(-2*(qx*qz-qw*qy))
+            yaw = np.arctan2(2*(qx*qy+qw*qz), qw**2+qx**2-qy**2-qz**2)
+
+        return np.array([roll, pitch, yaw])
+    
+    def toRPY(self):
         qw, qx, qy, qz = self.__q
         roll = np.arctan2(2*(qw*qx+qy*qz), 1-2*(qx**2+qy**2))
         pitch = -np.pi/2 + 2*np.arctan2(1+2*(qw*qy-qx*qz), 1-2*(qw*qy-qx*qz))
         yaw = np.arctan2(2*(qw*qz+qx*qy), 1-2*(qy**2+qz**2))
-        return np.array([roll, pitch, yaw])
+
+        return -np.array([roll, pitch, yaw])
+    
+
+    # Alternative way of getting the quaternion, see https://ahrs.readthedocs.io/en/latest/filters/aqua.html
+    def qAcc(self, acc):
+        ax, ay, az = acc
+        if az >= 0: qAcc = np.array([np.sqrt((az+1)/2), -ay/np.sqrt(2*az+2), ax/np.sqrt(2*az+2), 0]) 
+        else:       qAcc = np.array([-ay/np.sqrt(2-2*az), np.sqrt((1-az)/2), 0, ax/np.sqrt(2-2*az)])
+        qAcc = Quaternion(qAcc)
+        return qAcc
+    
+    def qMag(self, qAcc, mag: np.ndarray):
+        l = qAcc.toRotationMatrix().T@mag
+        lx, ly, lz = l
+        gamma = lx**2 + ly**2
+        if lx >= 0: qMag = np.array([np.sqrt(gamma+lx*np.sqrt(gamma))/np.sqrt(2*gamma), 0, 0, ly/(np.sqrt(2)*np.sqrt(gamma+lx*np.sqrt(gamma)))])
+        else:       qMag = np.array([ly/(np.sqrt(2)*np.sqrt(gamma-lx*np.sqrt(gamma))), 0, 0, np.sqrt(gamma-lx*np.sqrt(gamma))/np.sqrt(2*gamma)])
+        qMag = Quaternion(qMag)
+        return qMag
+    
     
     def toRotationMatrix(self, q=None):
         if q is None: q = self.__q
@@ -60,8 +95,9 @@ class Quaternion:
 
     def normalize(self, q=None):
         if q is None:
-            self.__q/=np.linalg.norm(self.__q)
+            self.__q /= np.linalg.norm(self.__q)
             q = self.__q
+        else: q /= np.linalg.norm(q)
         return q
     
     def conjugate(self, q=None):
@@ -97,6 +133,6 @@ class Quaternion:
         for x in self.__q: yield x
 
     def __mul__(self, obj):
-        if type(obj) == Quaternion: return self.quaternionMultiplication(self.__q, obj.q())
+        if type(obj) == Quaternion: return Quaternion(self.quaternionMultiplication(self.__q, obj.q()))
         if type(obj) == np.ndarray and len(obj) == 3: return self.coordinateTransform(self.__q, obj)
-        if type(obj) == float or int: return self.__q*obj
+        if type(obj) == float or int: return Quaternion(self.__q*obj)

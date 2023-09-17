@@ -51,7 +51,7 @@ class DataAnalyzis:
                 else: newData[key] = (R@value.T).T
             return newData
         
-        data = rotateData(data, Rz(np.pi/2))
+        data = rotateData(data, Rz(np.pi/2)) # 90 degree yaw
 
         return data
 
@@ -62,6 +62,12 @@ class DataAnalyzis:
         magY = -mag[:, 1]*np.cos(r) + mag[:, 2]*np.sin(r)
 
         yRaw = np.arctan2(magY, magX)
+
+        # magX = mag[:, 0]*np.cos(r) + mag[:, 1]*np.sin(r) * \
+        #     np.sin(p) + mag[:, 2]*np.sin(r)*np.cos(p)
+        # magY = mag[:, 1]*np.cos(p) - mag[:, 2]*np.sin(p)
+
+        # yRaw = np.arctan2(-magY, magX)
         return yRaw
     
 
@@ -86,7 +92,7 @@ class DataAnalyzis:
         if len(acc.shape) < 2: acc = acc.reshape((1, 3))
         if len(mag.shape) < 2: mag = mag.reshape((1, 3))
         r = np.arctan2(acc[:, 1], acc[:, 2])
-        p = -np.arctan2(acc[:, 0], np.sqrt(acc[:, 1]**2 + acc[:, 2]**2))
+        p = np.arctan2(-acc[:, 0], np.sqrt(acc[:, 1]**2 + acc[:, 2]**2))
         y = obj.getYawFromMag(mag, r, p)
         return r, p, y
 
@@ -102,9 +108,18 @@ class DataAnalyzis:
         sampleSize = data['acc'].shape[0]
         gyro = data['gyro']
 
-        r, p, y = self.getEuler(data)
+        # r, p, y = self.getEuler(data)
+        # quat = np.vstack([Quaternion((r[i], p[i], y[i])).q() for i in range(len(r))])
 
-        quat = np.vstack([Quaternion((r[i], p[i], y[i])).q() for i in range(len(r))])
+        def getQ(data):
+            qObj = Quaternion()
+            qAcc = qObj.qAcc(data['acc'])
+            qMag = qObj.qMag(qAcc, data['mag'])
+            qMeasured = qMag*qAcc
+            qMeasured.normalize()
+            return qMeasured.q()
+        
+        quat = np.vstack([getQ({'acc': data['acc'][i, :], 'mag': data['mag'][i, :]}) for i in range(sampleSize)])
 
         sample = np.zeros((sampleSize, 7))
         sample[:, :4] = quat
@@ -113,8 +128,9 @@ class DataAnalyzis:
             np.save(f, sample)
 
 
+
 pth = f'{filePath}\\sensordata'
-title = 'positiv-yaw'
+title = 'stages'
 file = f'test-til-simen\\{title}.npy'
 obj = DataAnalyzis()
 rawData = obj.openFile(pth, file)
@@ -151,6 +167,7 @@ plotInfo = {
     0: {'rawEuler': ['Raw roll', 'Raw pitch', 'Raw yaw']},
     0: {'euler': ['Roll', 'Pitch', 'Yaw'],
         'rawEuler': ['Raw roll', 'Raw pitch', 'Raw yaw']},
+    1: {'rawW': ['Raw rollrate', 'Raw pitchrate', 'Raw yawrate']},
     1: {'rawW': ['Raw rollrate', 'Raw pitchrate', 'Raw yawrate'],
         'w': ['Rollrate', 'Pitchrate', 'Yawrate']},
 }

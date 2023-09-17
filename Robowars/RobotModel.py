@@ -9,7 +9,12 @@ class RobotModel:
         with open(f'{filePath}\\sensordata\\Rv.npy', 'rb') as f:
             a = np.load(f)
         self.Rv = np.cov(a, rowvar=False)  # Measurement noise
-        self.Qw = np.eye(13)*5e-2 # Process noise
+        Qr, Qq, Qv, Qw = 5e0, 5e-1, 5e0, 5e-1
+        self.Qw = np.eye(13) # Process noise
+        self.Qw[:3, :3] *= Qr
+        self.Qw[3:7, 3:7] *= Qq
+        self.Qw[7:10, 7:10] *= Qv
+        self.Qw[10:13, 10:13] *= Qw
         self.x0 = x0
         self.P0 = P0
         self.u0 = np.array([0]*6)
