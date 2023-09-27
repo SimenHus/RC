@@ -20,3 +20,14 @@ Rz = sp.Matrix([
     [0, sp.cos(y), -sp.sin(y)],
     [0, sp.sin(y), sp.cos(y)]
 ])
+
+
+T = sp.symbols('T')
+
+F = sp.Matrix([
+    [1, 0, T, 0],
+    [0, 1, 0, T],
+    [0, 0, 1, 0],
+    [0, 0, 0, 1]
+])
+print(F.inv())

@@ -130,7 +130,7 @@ class DataAnalyzis:
 
 
 pth = f'{filePath}\\sensordata'
-title = 'stages'
+title = 'slowest'
 file = f'test-til-simen\\{title}.npy'
 obj = DataAnalyzis()
 rawData = obj.openFile(pth, file)
