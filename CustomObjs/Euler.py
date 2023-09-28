@@ -2,26 +2,32 @@
 import numpy as np
 import sympy as sp
 
-def EulerAngles(q):
-    Rx = np.array([
+def Rx(theta):
+    R = np.array([
         [1, 0, 0],
-        [0, np.cos(q[0]), -np.sin(q[0])],
-        [0, np.sin(q[0]), np.cos(q[0])]
+        [0, np.cos(theta), -np.sin(theta)],
+        [0, np.sin(theta), np.cos(theta)]
     ])
-    
-    Ry = np.array([
-        [np.cos(q[1]), 0, np.sin(q[1])],
-        [0, 1, 0],
-        [-np.sin(q[1]), 0, np.cos(q[1])]
-    ])
+    return R
 
-    Rz = np.array([
-        [np.cos(q[2]), -np.sin(q[2]), 0],
-        [np.sin(q[2]), np.cos(q[2]), 0],
+def Ry(theta):
+    R = np.array([
+        [np.cos(theta), 0, np.sin(theta)],
+        [0, 1, 0],
+        [-np.sin(theta), 0, np.cos(theta)]
+    ])
+    return R
+
+def Rz(theta):
+    R = np.array([
+        [np.cos(theta), -np.sin(theta), 0],
+        [np.sin(theta), np.cos(theta), 0],
         [0, 0, 1]
     ])
+    return R
 
-    return Rx@Ry@Rz
+def EulerAngles(q):
+    return Rx(q[0])@Ry(q[1])@Rz(q[2])
     
 def EulerAnglesSymb(q):
     Rx = sp.Matrix([
