@@ -1,6 +1,5 @@
 
 import numpy as np
-import sympy as sp
 
 import sys
 import os
@@ -38,13 +37,14 @@ class Filter:
         self.x = x0 # Init state
         self.P = P0 # Init covariance matrix
 
-        self.f = sp.lambdify([self.dynamicModel.xSymb, self.dynamicModel.uSymb],
-                             self.dynamicModel.f(), modules='numpy')  # State function
-        self.F = sp.lambdify([self.dynamicModel.xSymb, self.dynamicModel.uSymb],
-                             self.dynamicModel.F(), modules='numpy')  # State funcion jacobian
+        self.f = self.dynamicModel.f
+        self.F = self.dynamicModel.F
 
         self.h = self.measurementModel.h
         self.H = self.measurementModel.H
+
+        self.Qw = self.dynamicModel.Qw
+        self.Rv = self.measurementModel.Rv
     
     def sample(self, u, data):
         gyro = data['gyro']
@@ -52,7 +52,7 @@ class Filter:
         r, p, y = self.IMUFuncs.getAngles(data)
 
         y = np.hstack((r, p, y, gyro))
-        self.x, self.P = self.EKF(self.x, self.P, y, u, self.dynamicModel.Qw, self.measurementModel.Rv)
+        self.x, self.P = self.EKF(self.x, self.P, y, u, self.Qw, self.Rv)
 
         state = {
             'q': self.x[:3],
@@ -67,7 +67,6 @@ class Filter:
         # Predict
         F = self.F(x, u)
         x_ = self.f(x, u)
-        x_ = x_.reshape((x_.shape[0],))
         P_ = F@P@F.T + Qw
 
         # Predicted measurements
