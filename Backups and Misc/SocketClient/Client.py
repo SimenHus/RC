@@ -2,8 +2,9 @@ import socket
 from PySide6.QtCore import QThread, Signal, Slot
 
 import pickle
+from Modules.SocketClient.ClientGUI import ClientGUI
 
-class Client(QThread):
+class Client(QThread, ClientGUI):
     dataSignal = Signal(dict)
     statusSignal = Signal(str)
 
@@ -14,6 +15,13 @@ class Client(QThread):
         self.HOST = host
         self.PORT = port
         self.running = True
+        self.statusSignal.connect(self.statusMessage)
+
+
+    @Slot()
+    def statusMessage(self, data):
+        # Function to display status messages for the client
+        self.clientDisplay.append(str(data))
 
     def run(self):
         # Main loop. Will stop running if self.running = False
@@ -27,12 +35,12 @@ class Client(QThread):
                 except: continue # If not server found, check again
                 client.settimeout(None)
                 self.connected(client) # If server found, handle communication
-                self.statusSignal.emit('Not connected') # Inform that client has disconnected
+                self.statusSignal.emit('Lost connection to server') # Inform that client has disconnected
                 
     
     def connected(self, client):
         # Function to handle server communication
-        self.statusSignal.emit('Connected') # Inform that the client is connected
+        self.statusSignal.emit('Connected to server') # Inform that the client is connected
         while self.running:
             try:
                 data = client.recv(1024) # Get message from server

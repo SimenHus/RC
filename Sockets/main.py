@@ -4,7 +4,7 @@ from PySide6.QtCore import Slot
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (QApplication, QGroupBox,
                                QHBoxLayout, QMainWindow,
-                               QSizePolicy, QWidget)
+                               QSizePolicy, QWidget, QLabel)
 
 from Modules.SocketClient.Client import Client
 from Modules.Graph.Graph import GraphHandler
@@ -18,17 +18,6 @@ class MainWindow(QMainWindow):
         self.setGeometry(0, 0, 800, 500)
         self.path = 'C:\\Users\\shustad\\Desktop\\Prog\\Sockets\\Resources'
 
-        # Main menu bar
-        self.menu = self.menuBar()
-        self.menu_file = self.menu.addMenu("File")
-        exit = QAction("Exit", self, triggered=self.exit)
-        self.menu_file.addAction(exit)
-
-        self.menu_about = self.menu.addMenu("&About")
-        about = QAction("About Qt", self, shortcut=QKeySequence(QKeySequence.HelpContents),
-                        triggered=qApp.aboutQt)
-        self.menu_about.addAction(about)
-
 
         # Graph window
         self.Graph = GraphHandler()
@@ -38,23 +27,50 @@ class MainWindow(QMainWindow):
 
         # Server window
         self.client = Client()
-        self.clientGroup = QGroupBox('Client interface')
-        self.clientGroup.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
-        self.clientGroup.setLayout(self.client.layout)
         self.client.dataSignal.connect(self.Graph.dataMessage)
+        self.client.statusSignal.connect(self.connectionStatus)
         self.client.start()
+
+        # Main menu bar
+        self.menu = self.menuBar()
+        menu_file = self.menu.addMenu("File")
+        menu_about = self.menu.addMenu("&About")
+        menu_graph = self.menu.addMenu('Graph')
+
+        exit = menu_file.addAction('Exit')
+        exit.triggered.connect(self.exit)
+
+        about = menu_about.addAction("About Qt")
+        about.triggered.connect(qApp.aboutQt)
+
+        addGraph = menu_graph.addAction('Add graph')
+        addGraph.triggered.connect(self.Graph.addGraph)
+
+        removeGraph = menu_graph.addAction('Remove graph')
+        removeGraph.triggered.connect(self.Graph.removeGraph)
+
+        test = menu_graph.addAction('Add state')
+        test.triggered.connect(lambda: self.Graph.addStateToGraph(self.Graph.graphWidgets[0], 'gyro_1'))
+
+        # Status bar
+        self.statusBar = self.statusBar()
+
+        self.connectionStatusWidget = QLabel('Not connected')
+        self.statusBar.addWidget(self.connectionStatusWidget)
 
 
         # Main layout
         layout = QHBoxLayout()
         layout.addWidget(self.graphGroup, 90)
-        layout.addWidget(self.clientGroup, 10)
 
         # Central widget
         widget = QWidget(self)
         widget.setLayout(layout)
         self.setCentralWidget(widget)
 
+    @Slot()
+    def connectionStatus(self, status):
+        self.connectionStatusWidget.setText(status)
 
     @Slot()
     def exit(self):

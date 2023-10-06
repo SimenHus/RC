@@ -54,7 +54,7 @@ class clientHandler(Thread):
         print('Client disconnected')
 
     def dataFromFile(self):
-        with open("C:\\Users\\shustad\\Desktop\\Prog\\Sockets\\Data.npy", 'rb') as f:
+        with open('C:\\Users\\shustad\\Desktop\\Prog\\RC-WorkBranch\\Robowars\\sensordata\\spinning.npy', 'rb') as f:
             data = np.load(f)
         MAX_VAL = 2**15
         ACCEL_RANGE = MAX_VAL/16
