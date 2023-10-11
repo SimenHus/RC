@@ -1,5 +1,5 @@
 
-from Modules.Graph.CustomWidgets import DataWidget, GraphLayoutWidget
+from Modules.Graph.CustomWidgets import DataWidget, CustomGraphicsLayoutWidget, CustomPlotItem
 from PySide6.QtWidgets import (QApplication, QComboBox, QGroupBox, QWidgetItem,
                                QHBoxLayout, QLabel, QMainWindow, QPushButton,
                                QSizePolicy, QVBoxLayout, QWidget, QSpinBox,
@@ -13,7 +13,7 @@ class GraphGUI:
         self.DataGroup = namedtuple('DataGroup', ['name', 'states'])
         
         # https://www.pythonguis.com/tutorials/pyqt6-plotting-pyqtgraph/
-        self.graph = GraphLayoutWidget()
+        self.graph = CustomGraphicsLayoutWidget()
         self.graph.setBackground('w')
         self.graphWidgets = [] # List to store graphs
         self._generateSubplot() # Create an initial graph element
@@ -22,7 +22,7 @@ class GraphGUI:
         # Autoscroll options
         self.autoscroll = True
         self.autoscrollRange = 10
-        self.resetGraphButton = QPushButton('Reset graph')
+        self.resetGraphButton = QPushButton('Reset graphs')
         self.toggleAutoscrollButton = QPushButton('Toggle autoscroll')
         self.autoscrollRangeSpinbox = QSpinBox()
         self.autoscrollRangeSpinbox.setValue(self.autoscrollRange)
@@ -44,13 +44,19 @@ class GraphGUI:
         self.layout.addLayout(self.graphLayout, 80)
         self.layout.addLayout(self.graphDataControl, 20)
 
-    def _removeSubplot(self):
+    def _removeSubplot(self) -> None:
+        """
+        Function to remove last subplot
+        """
         if len(self.graphWidgets) == 1: return
         self.graphWidgets.pop().deleteLater()
 
-    def _generateSubplot(self):
-        graphWidget = self.graph.addPlot()
-        # graphWidget.setFixedSize(640, 480)
+    def _generateSubplot(self) -> None:
+        """
+        Function to generate a subplot
+        """
+        graphWidget = CustomPlotItem()
+        graphWidget.setParent(self.graph)
         graphWidget.showGrid(x=True, y=True)
         graphWidget.setTitle('Graph title')
 
@@ -61,33 +67,36 @@ class GraphGUI:
         graphWidget.hideButtons()
         graphWidget.disableAutoRange()
         graphWidget.setMouseEnabled(x=False, y=False)
+        self.graph.addItem(graphWidget)
         self.graphWidgets.append(graphWidget)
 
-    def _resetGraphs(self):
+    def _resetGraphs(self) -> None:
+        """
+        Clears all graphs of their content
+        """
         for graphWidget in self.graphWidgets: graphWidget.clear()
 
-    def _setupControlDataWidgets(self, data: dict):
+    def _setupDataWidgetGroup(self, data: dict) -> None:
+        """
+        Takes in a dataset dict with state: values,
+        and creates a widget with dragable statenames
+        """
         for group, values in data.items():
-            groupData = self.DataGroup(group, values.shape[1])
-            groupWidget = self._addDataControlWidget(groupData)
+            groupData: namedtuple = self.DataGroup(group, values.shape[1])
+            groupWidget: QWidget = self._createDataWidget(groupData)
             self.graphDataControl.addWidget(groupWidget)
 
-    def _addDataControlWidget(self, group: namedtuple):
+    def _createDataWidget(self, group: namedtuple) -> QWidget:
+        """
+        Takes in a namedtuple with statename and number of states.
+        Returns a widget with dragable states
+        """
         widget = QWidget()
-        groupLayout = QVBoxLayout()
-
-        firstRow = QHBoxLayout()
-        firstRow.addWidget(QLabel(group.name))
-
-        secondRow = QHBoxLayout()
+        layout = QHBoxLayout()
         for i in range(group.states):
-            l = QVBoxLayout()
             dw = DataWidget(f'{group.name}_{i+1}')
-            dw.setStyleSheet('border: 1px solid black')
-            l.addWidget(dw)
-            secondRow.addLayout(l)
-        groupLayout.addLayout(firstRow)
-        groupLayout.addLayout(secondRow)
-        widget.setLayout(groupLayout)
+            dw.setObjectName('DataWidget')
+            layout.addWidget(dw)
+        widget.setLayout(layout)
         return widget
         

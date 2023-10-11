@@ -16,8 +16,7 @@ class MainWindow(QMainWindow):
         # Title and dimensions
         self.setWindowTitle("Server side application")
         self.setGeometry(0, 0, 800, 500)
-        self.path = 'C:\\Users\\shustad\\Desktop\\Prog\\Sockets\\Resources'
-
+        self.path = 'C:\\Users\\shustad\\Desktop\\Prog\\RC-Workbranch\\Sockets\\Resources'
 
         # Graph window
         self.Graph = GraphHandler()
@@ -69,11 +68,11 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(widget)
 
     @Slot()
-    def connectionStatus(self, status):
+    def connectionStatus(self, status) -> None:
         self.connectionStatusWidget.setText(status)
 
     @Slot()
-    def exit(self):
+    def exit(self) -> None:
         print('Exiting...')
         self.client.running = False
         # Give time for the thread to finish
@@ -84,4 +83,6 @@ if __name__ == "__main__":
     app = QApplication()
     w = MainWindow()
     w.show()
+    
+    with open(f'{w.path}\\style.qss', 'r') as f: app.setStyleSheet(f.read())
     sys.exit(app.exec())

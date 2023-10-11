@@ -1,0 +1,18 @@
+
+QLabel#DataWidget {
+    background-color: #2ABf9E;
+    padding: 10px;
+    font-size: 15px;
+    border: 2px groove gray;
+    border-radius: 5px;
+}
+
+QPushButton, QSpinBox {
+    background-color: #2ABf9E;
+    padding: 10px;
+    font-size: 15px;
+}
+
+QSpinBox {
+    background-color: white;
+}
