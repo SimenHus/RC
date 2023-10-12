@@ -14,15 +14,12 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         # Title and dimensions
-        self.setWindowTitle("Server side application")
+        self.setWindowTitle("Client side application")
         self.setGeometry(0, 0, 800, 500)
         self.path = 'C:\\Users\\shustad\\Desktop\\Prog\\RC-Workbranch\\Sockets\\Resources'
 
         # Graph window
         self.Graph = GraphHandler()
-        self.graphGroup = QGroupBox('Graph')
-        self.graphGroup.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
-        self.graphGroup.setLayout(self.Graph.layout)
 
         # Server window
         self.client = Client()
@@ -48,9 +45,6 @@ class MainWindow(QMainWindow):
         removeGraph = menu_graph.addAction('Remove graph')
         removeGraph.triggered.connect(self.Graph.removeGraph)
 
-        test = menu_graph.addAction('Add state')
-        test.triggered.connect(lambda: self.Graph.addStateToGraph(self.Graph.graphWidgets[0], 'gyro_1'))
-
         # Status bar
         self.statusBar = self.statusBar()
 
@@ -59,8 +53,7 @@ class MainWindow(QMainWindow):
 
 
         # Main layout
-        layout = QHBoxLayout()
-        layout.addWidget(self.graphGroup, 90)
+        layout = self.Graph.layout
 
         # Central widget
         widget = QWidget(self)
@@ -84,5 +77,10 @@ if __name__ == "__main__":
     w = MainWindow()
     w.show()
     
-    with open(f'{w.path}\\style.qss', 'r') as f: app.setStyleSheet(f.read())
+    with open(f'{w.path}\\styleVariables.txt', 'r') as f: varList = f.readlines()
+    with open(f'{w.path}\\style.qss', 'r') as f: styleSheet = f.read()
+    for var in varList:
+        name, value = var.split('=')
+        styleSheet = styleSheet.replace(name, value)
+    app.setStyleSheet(styleSheet)
     sys.exit(app.exec())

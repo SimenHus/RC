@@ -1,5 +1,5 @@
 
-from Modules.Graph.CustomWidgets import DataWidget, CustomGraphicsLayoutWidget, CustomPlotItem
+from Modules.Graph.CustomWidgets import DataWidget, CustomGraphicsLayoutWidget, CustomPlotItem, ControlButtonWidget
 from PySide6.QtWidgets import (QApplication, QComboBox, QGroupBox, QWidgetItem,
                                QHBoxLayout, QLabel, QMainWindow, QPushButton,
                                QSizePolicy, QVBoxLayout, QWidget, QSpinBox,
@@ -16,8 +16,11 @@ class GraphGUI:
         self.graph = CustomGraphicsLayoutWidget()
         self.graph.setBackground('w')
         self.graphWidgets = [] # List to store graphs
-        self._generateSubplot() # Create an initial graph element
+        self.rightPanel = QVBoxLayout() # Right panel layout
         self.graphDataControl = QVBoxLayout() # Layout for data groups
+        self.controlPanel = QVBoxLayout() # Layout for control panel
+        self._generateSubplot() # Create an initial graph element
+        self._setupControlPanel() # Setup control panel
 
         # Autoscroll options
         self.autoscroll = True
@@ -28,6 +31,10 @@ class GraphGUI:
         self.autoscrollRangeSpinbox.setValue(self.autoscrollRange)
         self.autoscrollRangeSpinbox.setMinimum(1)
         self.autoscrollRangeSpinbox.setMaximum(10000)
+
+        self.resetGraphButton.setToolTip('Remove all states from all graphs and reset x-axis')
+        self.toggleAutoscrollButton.setToolTip('Toggle if x-axis should autoscroll or not')
+        self.autoscrollRangeSpinbox.setToolTip('Set range for x-axis if autoscrolling')
 
         autoscrollLayout = QHBoxLayout()
 
@@ -40,9 +47,36 @@ class GraphGUI:
         self.graphLayout.addLayout(autoscrollLayout)
 
         # Set main layout
+        self.rightPanel.addLayout(self.graphDataControl, 60)
+        self.rightPanel.addLayout(self.controlPanel, 40)
         self.layout = QHBoxLayout()
         self.layout.addLayout(self.graphLayout, 80)
-        self.layout.addLayout(self.graphDataControl, 20)
+        self.layout.addLayout(self.rightPanel, 20)
+
+
+    def _setupControlPanel(self) -> None:
+        firstRow = QHBoxLayout()
+        secondRow = QHBoxLayout()
+        CCR = ControlButtonWidget()
+        CR = ControlButtonWidget()
+        UpArrow = ControlButtonWidget('U')
+        LeftArrow = ControlButtonWidget('L')
+        DownArrow = ControlButtonWidget('D')
+        RightArrow = ControlButtonWidget('R')
+        CCR.setToolTip('Counter-clockwise rotation speed')
+        CR.setToolTip('Clockwise rotation speed')
+
+        firstRow.addWidget(CCR)
+        firstRow.addWidget(UpArrow)
+        firstRow.addWidget(CR)
+        secondRow.addWidget(LeftArrow)
+        secondRow.addWidget(DownArrow)
+        secondRow.addWidget(RightArrow)
+        self.controlPanel.addLayout(firstRow)
+        self.controlPanel.addLayout(secondRow)
+
+
+
 
     def _removeSubplot(self) -> None:
         """

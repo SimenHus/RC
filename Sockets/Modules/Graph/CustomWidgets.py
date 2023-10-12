@@ -1,11 +1,14 @@
 from pyqtgraph import PlotItem, GraphicsLayoutWidget, PlotDataItem
 from PySide6.QtCore import Qt, QMimeData, Signal
 from PySide6.QtGui import QDrag, QDragEnterEvent, QDropEvent, QMouseEvent, QDragMoveEvent
-from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QLabel, QToolButton
 
 
 
 class DataWidget(QLabel):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.setToolTip('Drag me to a graph')
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         if event.buttons() != Qt.LeftButton: return
@@ -14,6 +17,19 @@ class DataWidget(QLabel):
         mime.setText(self.text())
         drag.setMimeData(mime)
         drag.exec_(Qt.MoveAction)
+
+class ControlButtonWidget(QToolButton):
+    pushSignal = Signal(bool)
+
+    def __init__(self, arrowDir=None, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        if arrowDir is None: return
+        
+        if arrowDir == 'R': arrowDir = Qt.RightArrow
+        if arrowDir == 'L': arrowDir = Qt.LeftArrow
+        if arrowDir == 'U': arrowDir = Qt.UpArrow
+        if arrowDir == 'D': arrowDir = Qt.DownArrow
+        self.setArrowType(arrowDir)
 
 
 class CustomPlotItem(PlotItem):
