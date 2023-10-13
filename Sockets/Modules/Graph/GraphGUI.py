@@ -7,9 +7,10 @@ from PySide6.QtWidgets import (QApplication, QComboBox, QGroupBox, QWidgetItem,
 
 from collections import namedtuple
 
-class GraphGUI:
+class GraphGUI(QWidget):
+    
     def __init__(self):
-
+        super().__init__()
         self.DataGroup = namedtuple('DataGroup', ['name', 'states'])
         
         # https://www.pythonguis.com/tutorials/pyqt6-plotting-pyqtgraph/

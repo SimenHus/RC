@@ -15,6 +15,7 @@ class Client(QThread):
         self.PORT = port
         self.running = True
 
+
     def run(self):
         # Main loop. Will stop running if self.running = False
         

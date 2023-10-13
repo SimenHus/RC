@@ -1,10 +1,12 @@
 import numpy as np
 
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Slot, Signal
 
 from Modules.Graph.GraphGUI import GraphGUI
 
 class GraphHandler(GraphGUI):
+    outgoingSignal = Signal(str) # Command
+
     def __init__(self):
         super().__init__()
 

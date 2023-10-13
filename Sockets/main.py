@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (QApplication, QGroupBox,
                                QHBoxLayout, QMainWindow,
                                QSizePolicy, QWidget, QLabel)
 
-from Modules.SocketClient.Client import Client
+from Modules.SocketClient.ClientAsync import Client
 from Modules.Graph.Graph import GraphHandler
 
 
@@ -18,14 +18,12 @@ class MainWindow(QMainWindow):
         self.setGeometry(0, 0, 800, 500)
         self.path = 'C:\\Users\\shustad\\Desktop\\Prog\\RC-Workbranch\\Sockets\\Resources'
 
-        # Graph window
         self.Graph = GraphHandler()
-
-        # Server window
-        self.client = Client()
-        self.client.dataSignal.connect(self.Graph.dataMessage)
-        self.client.statusSignal.connect(self.connectionStatus)
-        self.client.start()
+        self.Client = Client()
+        self.Graph.outgoingSignal.connect(self.Client.OutgoingAgent)
+        self.Client.dataSignal.connect(self.Graph.dataMessage)
+        self.Client.statusSignal.connect(self.connectionStatus)
+        self.Client.start()
 
         # Main menu bar
         self.menu = self.menuBar()
@@ -67,9 +65,9 @@ class MainWindow(QMainWindow):
     @Slot()
     def exit(self) -> None:
         print('Exiting...')
-        self.client.running = False
+        self.Client.running = False
         # Give time for the thread to finish
-        self.client.wait()
+        self.Client.wait()
         self.close()
 
 if __name__ == "__main__":
