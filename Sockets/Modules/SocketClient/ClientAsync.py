@@ -1,12 +1,16 @@
 import asyncio
+from struct import unpack
+import numpy as np
 
-from bleak import BleakClient
-from PySide6.QtCore import QThread, Signal, Slot
+from bleak import BleakClient, BleakScanner, BLEDevice
+from PySide6.QtCore import QThread, Signal, Slot, Qt
 
 
 # Hentet fra Schimen sim kode
 COMMAND_SERVICE_UUID = "12345678-1234-5678-1234-56789abcdef0"
 COMMAND_WRITE_UUID  = "12345678-1234-5678-1234-56789abcdef1"
+DEBUG_SERVICE_UUID =    "deb12345-1234-5678-1234-56789abcdefa"
+DEBUG_READ_UUID =       "deb12345-1234-5678-1234-56789abcdefb"
 
 ERROR_COMMAND             = 0
 ACK_COMMAND               = 1
@@ -25,16 +29,11 @@ COMMAND_START = b'%'
 COMMAND_END = b'&'
 
 
-
-# https://stackoverflow.com/questions/59645272/how-do-i-pass-an-async-function-to-a-thread-target-in-python
-# https://stackoverflow.com/questions/63858511/using-threads-in-combination-with-asyncio
-# https://bleak.readthedocs.io/en/latest/usage.html
-
 class Client(QThread):
     dataSignal = Signal(list)
     statusSignal = Signal(str)
 
-    def __init__(self, host='24:71:89:cc:09:05', port=4, *args, **kwargs):
+    def __init__(self, host='rupert', port=4, *args, **kwargs):
         """
         host: str - Host MAC address to connect to
         port: int - Port to connect to
@@ -42,6 +41,7 @@ class Client(QThread):
         super().__init__(*args, **kwargs)
 
         self.outgoingQueue = asyncio.Queue()
+        self.writeCommandId = 0
 
         # Server variables
         self.HOST = host
@@ -64,30 +64,54 @@ class Client(QThread):
         address = 0x07 & head
         self.dataSignal.emit((key, address, value))
 
+    def debugCB(self, _, data):
+        debugInfo = unpack('< q hhh hhh hhh h xxxx', data)
+        self.dataSignal.emit(debugInfo)
+
 
     @Slot()
-    def OutgoingAgent(self, data) -> None:
+    def OutgoingAgent(self, activeButtonList: set) -> None:
         """
         Agent to pass data from PyQt thread to async GATT client
         """
-        self.outgoingQueue.put(data)
+        forceDir = [0, 0]
+        if Qt.Key_Right in activeButtonList: forceDir[1] += 1 # (Forward, Clockwise rotation)
+        if Qt.Key_Left in activeButtonList: forceDir[1] += -1 # (Forward, Clockwise rotation)
+        if Qt.Key_Up in activeButtonList: forceDir[0] += 1 # (Forward, Clockwise rotation)
+        if Qt.Key_Down in activeButtonList: forceDir[0] += -1 # (Forward, Clockwise rotation)
+        Kf, rw = 1, 1 # Motor force constant and distance from CoG to wheels
+        forward, clockwiseRotation = forceDir
+        Vs = clockwiseRotation/(Kf*rw)
+        Vd = forward/Kf
+
+        maxFromMiddle = 5
+        V1 = int(1/2*(Vs + Vd)*maxFromMiddle + 127)
+        V2 = int(1/2*(Vs - Vd)*maxFromMiddle + 127)
+        
+        asyncio.run(self.outgoingQueue.put((LEFT_MOTOR_COMMAND, V1)))
+        asyncio.run(self.outgoingQueue.put((RIGHT_MOTOR_COMMAND, V2)))
+        print(V1, V2)
 
 
-    async def GATTSend(self, client: BleakClient, data) -> None:
+    async def GATTSend(self, client: BleakClient, msg: tuple) -> None:
         """
         Send data via GATT client
         """
-        characteristic = client.services.get_characteristic(COMMAND_WRITE_UUID)
-        commandMTU = characteristic.max_write_without_response_size//2
-        if len(data) > commandMTU:
-            print('More data than mtu, remove oldest commands')
-            # If there are too many commands, remove the oldest ones
-            data = data[(len(data) - commandMTU):]
+        key, value = msg
+        head = 0xFF & ((key << 5) | self.writeCommandId)
+        data = bytearray([head, value])
+        await client.write_gatt_char(COMMAND_WRITE_UUID, data)
+        self.writeCommandId += 1
 
-        CommandBytes = [byte for command_data in data for byte in command_data]
-        dataBytes = bytearray(CommandBytes)
-        await client.write_gatt_char(characteristic, dataBytes)
 
+    async def findHost(self) -> None:
+        # correct_device = lambda d, _: 'rupert' in d.name.lower()
+        # device = await BleakScanner.find_device_by_filter(
+        #     correct_device,
+        #     timeout=5
+        # )
+        device = await BleakScanner.find_device_by_name(self.HOST, timeout=3)
+        return device
 
     async def GATTClientMain(self) -> None:
         """
@@ -95,19 +119,19 @@ class Client(QThread):
         """
         while self.running:
             self.statusSignal.emit('Not connected') # Inform that client has disconnected
-            print('Connecting to server...')
-            try:
-                async with BleakClient(self.HOST, timeout=1) as client: # Try to establish connection with server
-                    self.statusSignal.emit('Connected') # Inform that the client is connected
-                    characteristic = client.services.get_characteristic(COMMAND_WRITE_UUID)
-                    if characteristic is None: client.disconnect()
-                    await client.start_notify(characteristic, self.BLENotificationCB)
-                    while self.running:
-                        if not self.outgoingQueue.empty():
-                            await self.GATTSend(client, self.outgoingQueue.get())
-                        asyncio.sleep(1) # Keep connection open
-            except:
-                print('Could not establish connection')
+            device = None
+            while self.running and device is None: device: BLEDevice = await self.findHost()
+            if not self.running: break
+
+            async with BleakClient(device.address, timeout=5) as client: # Try to establish connection with server
+                self.statusSignal.emit('Connected') # Inform that the client is connected
+                characteristic = client.services.get_characteristic(DEBUG_READ_UUID)
+                if characteristic is None: client.disconnect()
+                await client.start_notify(characteristic, self.debugCB)
+                while self.running:
+                    if not self.outgoingQueue.empty():
+                        await self.GATTSend(client, await self.outgoingQueue.get())
+                    await asyncio.sleep(0.001)
 
     def run(self) -> None:
         """

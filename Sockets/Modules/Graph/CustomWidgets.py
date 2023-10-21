@@ -1,6 +1,6 @@
 from pyqtgraph import PlotItem, GraphicsLayoutWidget, PlotDataItem
 from PySide6.QtCore import Qt, QMimeData, Signal
-from PySide6.QtGui import QDrag, QDragEnterEvent, QDropEvent, QMouseEvent, QDragMoveEvent
+from PySide6.QtGui import QDrag, QDragEnterEvent, QDropEvent, QMouseEvent, QDragMoveEvent, QShortcut, QKeyEvent
 from PySide6.QtWidgets import QLabel, QToolButton
 
 
@@ -19,17 +19,21 @@ class DataWidget(QLabel):
         drag.exec_(Qt.MoveAction)
 
 class ControlButtonWidget(QToolButton):
-    pushSignal = Signal(bool)
 
-    def __init__(self, arrowDir=None, *args, **kwargs) -> None:
+    def __init__(self, button=None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        if arrowDir is None: return
-        
-        if arrowDir == 'R': arrowDir = Qt.RightArrow
-        if arrowDir == 'L': arrowDir = Qt.LeftArrow
-        if arrowDir == 'U': arrowDir = Qt.UpArrow
-        if arrowDir == 'D': arrowDir = Qt.DownArrow
-        self.setArrowType(arrowDir)
+        if button is None: return
+        shortcut = button
+        self.name = button
+
+        arrowDir = None
+        if button == 'Forward': arrowDir = Qt.UpArrow
+        if button == 'Backward': arrowDir = Qt.DownArrow
+        if button == 'Right': arrowDir = Qt.RightArrow
+        if button == 'Left': arrowDir = Qt.LeftArrow
+
+        if arrowDir is not None: self.setArrowType(arrowDir)
+        else: self.setText(button)
 
 
 class CustomPlotItem(PlotItem):

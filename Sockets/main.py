@@ -1,7 +1,7 @@
 import sys
 
-from PySide6.QtCore import Slot
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtCore import Slot, Signal
+from PySide6.QtGui import QAction, QKeySequence, QKeyEvent
 from PySide6.QtWidgets import (QApplication, QGroupBox,
                                QHBoxLayout, QMainWindow,
                                QSizePolicy, QWidget, QLabel)
@@ -10,17 +10,19 @@ from Modules.SocketClient.ClientAsync import Client
 from Modules.Graph.Graph import GraphHandler
 
 
+
 class MainWindow(QMainWindow):
+    outgoingSignal = Signal(set)
     def __init__(self):
         super().__init__()
         # Title and dimensions
         self.setWindowTitle("Client side application")
         self.setGeometry(0, 0, 800, 500)
-        self.path = 'C:\\Users\\shustad\\Desktop\\Prog\\RC-Workbranch\\Sockets\\Resources'
+        self.path = 'C:\\Users\\simen\\Desktop\\Prog\\Python\\RC-Workbranch\\Sockets\\Resources'
 
         self.Graph = GraphHandler()
         self.Client = Client()
-        self.Graph.outgoingSignal.connect(self.Client.OutgoingAgent)
+        self.outgoingSignal.connect(self.Client.OutgoingAgent)
         self.Client.dataSignal.connect(self.Graph.dataMessage)
         self.Client.statusSignal.connect(self.connectionStatus)
         self.Client.start()
@@ -49,7 +51,7 @@ class MainWindow(QMainWindow):
         self.connectionStatusWidget = QLabel('Not connected')
         self.statusBar.addWidget(self.connectionStatusWidget)
 
-
+        self.keyboardSet = set({})
         # Main layout
         layout = self.Graph.layout
 
@@ -57,6 +59,21 @@ class MainWindow(QMainWindow):
         widget = QWidget(self)
         widget.setLayout(layout)
         self.setCentralWidget(widget)
+    
+    def controlButtonCB(self) -> None:
+        self.outgoingSignal.emit(self.keyboardSet)
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        if event.isAutoRepeat(): return
+        key = event.keyCombination().key()
+        self.keyboardSet.add(key)
+        self.controlButtonCB()
+    
+    def keyReleaseEvent(self, event: QKeyEvent) -> None:
+        if event.isAutoRepeat(): return
+        key = event.keyCombination().key()
+        self.keyboardSet.remove(key)
+        self.controlButtonCB()
 
     @Slot()
     def connectionStatus(self, status) -> None:

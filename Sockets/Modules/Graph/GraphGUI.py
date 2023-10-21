@@ -21,7 +21,6 @@ class GraphGUI(QWidget):
         self.graphDataControl = QVBoxLayout() # Layout for data groups
         self.controlPanel = QVBoxLayout() # Layout for control panel
         self._generateSubplot() # Create an initial graph element
-        self._setupControlPanel() # Setup control panel
 
         # Autoscroll options
         self.autoscroll = True
@@ -56,16 +55,22 @@ class GraphGUI(QWidget):
 
 
     def _setupControlPanel(self) -> None:
+        """Sets up control panel with buttons and assigns button press action
+        """
         firstRow = QHBoxLayout()
         secondRow = QHBoxLayout()
-        CCR = ControlButtonWidget()
-        CR = ControlButtonWidget()
-        UpArrow = ControlButtonWidget('U')
-        LeftArrow = ControlButtonWidget('L')
-        DownArrow = ControlButtonWidget('D')
-        RightArrow = ControlButtonWidget('R')
+        thirdRow = QHBoxLayout()
+        CCR = ControlButtonWidget('Q')
+        CR = ControlButtonWidget('R')
+        UpArrow = ControlButtonWidget('Forward')
+        LeftArrow = ControlButtonWidget('Left')
+        DownArrow = ControlButtonWidget('Backward')
+        RightArrow = ControlButtonWidget('Right')
+        Space = ControlButtonWidget('Space')
         CCR.setToolTip('Counter-clockwise rotation speed')
         CR.setToolTip('Clockwise rotation speed')
+
+        self.controlPanelWidgets = [CCR, CR, UpArrow, LeftArrow, DownArrow, RightArrow, Space]
 
         firstRow.addWidget(CCR)
         firstRow.addWidget(UpArrow)
@@ -73,11 +78,10 @@ class GraphGUI(QWidget):
         secondRow.addWidget(LeftArrow)
         secondRow.addWidget(DownArrow)
         secondRow.addWidget(RightArrow)
+        thirdRow.addWidget(Space)
         self.controlPanel.addLayout(firstRow)
         self.controlPanel.addLayout(secondRow)
-
-
-
+        self.controlPanel.addLayout(thirdRow)
 
     def _removeSubplot(self) -> None:
         """

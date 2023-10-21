@@ -3,12 +3,15 @@ import numpy as np
 from PySide6.QtCore import Slot, Signal
 
 from Modules.Graph.GraphGUI import GraphGUI
+from Modules.Graph.CustomWidgets import ControlButtonWidget
 
 class GraphHandler(GraphGUI):
-    outgoingSignal = Signal(str) # Command
 
     def __init__(self):
         super().__init__()
+
+        # Generate control panel and assign func to buttons
+        self._setupControlPanel() # Setup control panel
 
         # Connect button signals to slots
         self.toggleAutoscrollButton.clicked.connect(self.toggleAutoscroll)
@@ -16,8 +19,8 @@ class GraphHandler(GraphGUI):
         self.resetGraphButton.clicked.connect(self.resetGraphs)
         self.graph.dropSignal.connect(self.addStateToGraph)
 
-        # Variables to store graph data
-        self.xAxis = np.array([0]) # Same xAxis for all states
+        self.xAxis = np.array([0]) # Same xAxis for all graphs
+
 
     @Slot()
     def addGraph(self) -> None:
@@ -50,7 +53,27 @@ class GraphHandler(GraphGUI):
         self.autoscrollRange = range # Set the autoscroll range
 
     @Slot()
-    def dataMessage(self, data: dict) -> None:
+    def dataMessage(self, data: tuple) -> None:
+
+        data = np.array(data)
+        if len(data.shape) == 1: data = data.reshape((1, data.shape[0]))
+
+        MAX_VAL = 2**15
+        ACCEL_RANGE = MAX_VAL/16
+        GYRO_RANGE = MAX_VAL/2000
+        MAGN_RANGE = MAX_VAL/4900
+
+        # Extract and convert values
+        time = (data[:, 0] - data[0, 0])/1000
+        accel = data[:, 1:4]/ACCEL_RANGE
+        gyro = data[:, 4:7]/GYRO_RANGE
+        mag = data[:, 7:10]/MAGN_RANGE
+
+        data = {
+            'acc': accel,
+            'gyro': gyro,
+            'mag': mag
+        }
 
         if len(data) > self.graphDataControl.count(): self._setupDataWidgetGroup(data)
 
