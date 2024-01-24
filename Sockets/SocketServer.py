@@ -39,31 +39,52 @@ class clientHandler(Thread):
         self.addr = addr
         self.running = True
         self.daemon = True
+
+
+        self.t = 0
+        self.steps = 10
     
     def run(self):
         print('Client connected')
         with self.client as client:
-            nStates = 2
-            t = np.array([0])
-            funcs = [np.sin, np.cos]
-            states = []
-            for i in range(nStates):
-                # newState = {'Name': f'x{i+1}', 'x0': np.random.default_rng().standard_normal(1)*10}
-                newState = {'Name': f'x{i+1}', 'x0': funcs[i%len(funcs)](t)}
-                states.append(newState)
-
-            connectMsg = {'MessageType': 'Init', 'Data': states}
-            client.sendall(pickle.dumps(connectMsg))
-            sleep(1)
             while self.running:
-                # data = [{'Name': f'x{i+1}', 'Measurement': np.random.default_rng().standard_normal(1)*10} for i in range(nStates)]
-                data = [{'Name': f'x{i+1}', 'Measurement': funcs[i%len(funcs)](t*0.1)} for i in range(nStates)]
-                dataMsg = {'MessageType': 'Data', 'Data': data}
-                try: client.sendall(pickle.dumps(dataMsg))
+                try: client.sendall(pickle.dumps(self.dataFromFile()))
                 except: break
-                t[0] += 1
                 sleep(0.1)
         print('Client disconnected')
+
+    def dataFromFile(self):
+        with open('C:\\Users\\shustad\\Desktop\\Prog\\RC-WorkBranch\\Robowars\\sensordata\\spinning.npy', 'rb') as f:
+            data = np.load(f)
+        MAX_VAL = 2**15
+        ACCEL_RANGE = MAX_VAL/16
+        GYRO_RANGE = MAX_VAL/2000
+        MAGN_RANGE = MAX_VAL/4900
+
+        # Extract and convert values
+        time = (data[:, 0] - data[0, 0])/1000
+        accel = data[:, 1:4]/ACCEL_RANGE
+        gyro = data[:, 4:7]/GYRO_RANGE
+        mag = data[:, 7:10]/MAGN_RANGE
+        temp = 21 + (data[:, 10] - 21)/334
+
+        data = {
+            'acc': accel,
+            'gyro': gyro,
+            # 'mag': mag
+        }
+
+
+
+        end = len(data['acc'][:, 0])
+        states = {}
+        if self.t+self.steps >= end: self.t = 0
+        for state, values in data.items():
+            states[state] = values[self.t:self.t+self.steps, :]
+        self.t += self.steps
+        return states
+        
+
 
 if __name__ == '__main__':
     server = Server()

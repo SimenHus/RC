@@ -1,141 +1,141 @@
-import pyqtgraph as pg
-from PySide6.QtWidgets import (QApplication, QComboBox, QGroupBox,
+
+from Modules.Graph.CustomWidgets import DataWidget, CustomGraphicsLayoutWidget, CustomPlotItem, ControlButtonWidget
+from PySide6.QtWidgets import (QApplication, QComboBox, QGroupBox, QWidgetItem,
                                QHBoxLayout, QLabel, QMainWindow, QPushButton,
                                QSizePolicy, QVBoxLayout, QWidget, QSpinBox,
                                QTextBrowser, QDoubleSpinBox, QCheckBox)
 
-class GraphGUI:
+from collections import namedtuple
+
+class GraphGUI(QWidget):
+    
     def __init__(self):
-
-        # -------------Graph related------------------
+        super().__init__()
+        self.DataGroup = namedtuple('DataGroup', ['name', 'states'])
+        
         # https://www.pythonguis.com/tutorials/pyqt6-plotting-pyqtgraph/
-        self.graphWidget = pg.PlotWidget()
-        # self.graphWidget.setFixedSize(640, 480)
-        self.graphWidget.showGrid(x=True, y=True)
-        self.graphWidget.setBackground('w')
-        self.graphWidget.setTitle('Graph title')
-
-        styles = {'color':'r', 'font-size':'10px'}
-        self.graphWidget.setLabel('left', 'y-axis', **styles)
-        self.graphWidget.setLabel('bottom', 'x-axis', **styles)
-        self.graphWidget.addLegend()
-        self.graphWidget.hideButtons()
-        self.graphWidget.disableAutoRange()
-        self.graphWidget.setMouseEnabled(x=False, y=False)
-        self.graphSettings = QGroupBox("Graph settings")
-        self.graphSettings.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
-
-        # -------------Settings related--------------
-        # Settings layout
-        self.graphSettingsLayout = QVBoxLayout()
-
-        # Define sub-settings and layouts
-
-        # Manual control options
-        lims = (-1000, 1000)
-        self.manualXRangeMin = QDoubleSpinBox()
-        self.manualXRangeMin.setMinimum(lims[0])
-        self.manualXRangeMin.setMaximum(lims[1])
-        self.manualXRangeMax = QDoubleSpinBox()
-        self.manualXRangeMax.setMinimum(lims[0])
-        self.manualXRangeMax.setMaximum(lims[1])
-
-        self.manualYRangeMin = QDoubleSpinBox()
-        self.manualYRangeMin.setMinimum(lims[0])
-        self.manualYRangeMin.setMaximum(lims[1])
-        self.manualYRangeMax = QDoubleSpinBox()
-        self.manualYRangeMax.setMinimum(lims[0])
-        self.manualYRangeMax.setMaximum(lims[1])
+        self.graph = CustomGraphicsLayoutWidget()
+        self.graph.setBackground('w')
+        self.graphWidgets = [] # List to store graphs
+        self.rightPanel = QVBoxLayout() # Right panel layout
+        self.graphDataControl = QVBoxLayout() # Layout for data groups
+        self.controlPanel = QVBoxLayout() # Layout for control panel
+        self._generateSubplot() # Create an initial graph element
 
         # Autoscroll options
         self.autoscroll = True
         self.autoscrollRange = 10
+        self.resetGraphButton = QPushButton('Reset graphs')
         self.toggleAutoscrollButton = QPushButton('Toggle autoscroll')
         self.autoscrollRangeSpinbox = QSpinBox()
         self.autoscrollRangeSpinbox.setValue(self.autoscrollRange)
         self.autoscrollRangeSpinbox.setMinimum(1)
-        self.autoscrollRangeSpinbox.setMaximum(lims[1])
+        self.autoscrollRangeSpinbox.setMaximum(10000)
 
-        # Button to set manual range to graph
-        self.setManRangeButton = QPushButton('Set manual range')
-        self.setManRangeButton.setEnabled(False)
+        self.resetGraphButton.setToolTip('Remove all states from all graphs and reset x-axis')
+        self.toggleAutoscrollButton.setToolTip('Toggle if x-axis should autoscroll or not')
+        self.autoscrollRangeSpinbox.setToolTip('Set range for x-axis if autoscrolling')
 
-        manualAutoscrollLayout = QHBoxLayout()
-        rangesMin = QVBoxLayout()
-        rangesMin.addWidget(QLabel('Manual range y min:'), 20)
-        rangesMin.addWidget(self.manualYRangeMin, 20)
-        rangesMin.addWidget(QLabel('Manual range x min:'), 20)
-        rangesMin.addWidget(self.manualXRangeMin, 20)
+        autoscrollLayout = QHBoxLayout()
 
-        rangesMax = QVBoxLayout()
-        rangesMax.addWidget(QLabel('Manual range y max:'), 20)
-        rangesMax.addWidget(self.manualYRangeMax, 20)
-        rangesMax.addWidget(QLabel('Manual range x max:'), 20)
-        rangesMax.addWidget(self.manualXRangeMax, 20)
+        autoscrollLayout.addWidget(self.toggleAutoscrollButton)
+        autoscrollLayout.addWidget(self.autoscrollRangeSpinbox)
+        autoscrollLayout.addWidget(self.resetGraphButton)
 
-        toggles = QVBoxLayout()
-        toggles.addWidget(QLabel(), 20)
-        toggles.addWidget(self.setManRangeButton, 20)
-        toggles.addWidget(QLabel(), 20)
-        toggles.addWidget(self.toggleAutoscrollButton, 20)
-
-        self.resetGraphButton = QPushButton('Reset graph')
-
-        autoscrollRangeLayout = QVBoxLayout()
-        autoscrollRangeLayout.addWidget(QLabel(), 20)
-        autoscrollRangeLayout.addWidget(self.resetGraphButton, 20)
-        autoscrollRangeLayout.addWidget(QLabel('Autoscroll x-axis range:'), 20)
-        autoscrollRangeLayout.addWidget(self.autoscrollRangeSpinbox, 20)
-
-        manualAutoscrollLayout.addLayout(rangesMin)
-        manualAutoscrollLayout.addLayout(rangesMax)
-        manualAutoscrollLayout.addLayout(toggles)
-        manualAutoscrollLayout.addLayout(autoscrollRangeLayout)
-
-        # Layout for show/hide graph elements
-        self.showHideBox = QGroupBox('Show/Hide states')
-        self.showHideBox.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
-
-        # Set sub-layouts
-        self.graphSettingsLayout.addLayout(manualAutoscrollLayout)
-        self.graphSettingsLayout.addWidget(self.showHideBox)
-        self.graphSettings.setLayout(self.graphSettingsLayout)
+        self.graphLayout = QVBoxLayout()
+        self.graphLayout.addWidget(self.graph)
+        self.graphLayout.addLayout(autoscrollLayout)
 
         # Set main layout
-        self.layout = QVBoxLayout()
-        self.layout.addWidget(self.graphWidget, 80)
-        self.layout.addWidget(self.graphSettings, 20)
+        self.rightPanel.addLayout(self.graphDataControl, 60)
+        self.rightPanel.addLayout(self.controlPanel, 40)
+        self.layout = QHBoxLayout()
+        self.layout.addLayout(self.graphLayout, 80)
+        self.layout.addLayout(self.rightPanel, 20)
 
 
-    def _setupShowHideSection(self, states):
-        vLayout = QVBoxLayout()
+    def _setupControlPanel(self) -> None:
+        """Sets up control panel with buttons and assigns button press action
+        """
+        firstRow = QHBoxLayout()
+        secondRow = QHBoxLayout()
+        thirdRow = QHBoxLayout()
+        CCR = ControlButtonWidget('Q')
+        CR = ControlButtonWidget('R')
+        UpArrow = ControlButtonWidget('Forward')
+        LeftArrow = ControlButtonWidget('Left')
+        DownArrow = ControlButtonWidget('Backward')
+        RightArrow = ControlButtonWidget('Right')
+        Space = ControlButtonWidget('Space')
+        CCR.setToolTip('Counter-clockwise rotation speed')
+        CR.setToolTip('Clockwise rotation speed')
 
-        self.toggleAllButton = QPushButton('Toggle all')
+        self.controlPanelWidgets = [CCR, CR, UpArrow, LeftArrow, DownArrow, RightArrow, Space]
 
-        statesPerRow = 8 # States per row before linechange
-        for i in range((len(states)-1)//statesPerRow+1): # If more than statesPerRow states, repeat for-loop
-            row = QHBoxLayout()
-            for state in states[statesPerRow*i:statesPerRow*(1+i)]:
-                stateBox = QCheckBox()
-                stateBox.setChecked(True)
-                stateBox.stateChanged.connect(lambda val, name=state: self.showHideStatePressed(name, val))
-                
-                itemLayout = QVBoxLayout()
-                itemLayout.addWidget(QLabel(f'{state}:'), 40)
-                itemLayout.addWidget(stateBox, 40)
+        firstRow.addWidget(CCR)
+        firstRow.addWidget(UpArrow)
+        firstRow.addWidget(CR)
+        secondRow.addWidget(LeftArrow)
+        secondRow.addWidget(DownArrow)
+        secondRow.addWidget(RightArrow)
+        thirdRow.addWidget(Space)
+        self.controlPanel.addLayout(firstRow)
+        self.controlPanel.addLayout(secondRow)
+        self.controlPanel.addLayout(thirdRow)
 
-                row.addLayout(itemLayout)
-            vLayout.addLayout(row)
-        vLayout.addWidget(self.toggleAllButton)
-        self.showHideBox.setLayout(vLayout)
+    def _removeSubplot(self) -> None:
+        """
+        Function to remove last subplot
+        """
+        if len(self.graphWidgets) == 1: return
+        self.graphWidgets.pop().deleteLater()
 
-    def _resetGraph(self):
-        self.graphSettingsLayout.removeWidget(self.showHideBox)
-        self.graphWidget.clear()
-        self.showHideBox.deleteLater()
-        self.showHideBox = QGroupBox('Show/Hide states')
-        self.showHideBox.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
-        self.graphSettingsLayout.addWidget(self.showHideBox)
+    def _generateSubplot(self) -> None:
+        """
+        Function to generate a subplot
+        """
+        graphWidget = CustomPlotItem()
+        graphWidget.setParent(self.graph)
+        graphWidget.showGrid(x=True, y=True)
+        graphWidget.setTitle('Graph title')
 
-    def _showHideToggleAll(self):
-        for box in self.showHideBox.findChildren(QCheckBox): box.setChecked(self.showHideAll)
+        styles = {'color':'r', 'font-size':'10px'}
+        graphWidget.setLabel('left', 'y-axis', **styles)
+        graphWidget.setLabel('bottom', 'x-axis', **styles)
+        graphWidget.addLegend()
+        graphWidget.hideButtons()
+        graphWidget.disableAutoRange()
+        graphWidget.setMouseEnabled(x=False, y=False)
+        self.graph.addItem(graphWidget)
+        self.graphWidgets.append(graphWidget)
+
+    def _resetGraphs(self) -> None:
+        """
+        Clears all graphs of their content
+        """
+        for graphWidget in self.graphWidgets: graphWidget.clear()
+
+    def _setupDataWidgetGroup(self, data: dict) -> None:
+        """
+        Takes in a dataset dict with state: values,
+        and creates a widget with dragable statenames
+        """
+        for group, values in data.items():
+            groupData: namedtuple = self.DataGroup(group, values.shape[1])
+            groupWidget: QWidget = self._createDataWidget(groupData)
+            self.graphDataControl.addWidget(groupWidget)
+
+    def _createDataWidget(self, group: namedtuple) -> QWidget:
+        """
+        Takes in a namedtuple with statename and number of states.
+        Returns a widget with dragable states
+        """
+        widget = QWidget()
+        layout = QHBoxLayout()
+        for i in range(group.states):
+            dw = DataWidget(f'{group.name}_{i+1}')
+            dw.setObjectName('DataWidget')
+            layout.addWidget(dw)
+        widget.setLayout(layout)
+        return widget
+        

@@ -1,13 +1,15 @@
+import matplotlib.pyplot as plt
+import numpy as np
+from SensorDataEulerModded import SensorData
+from RobotModelEulerModded import RobotModel
+
 import sys
 import os
+
 filePath = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, f'{filePath}\\..')
 
-import matplotlib.pyplot as plt
-import numpy as np
-from Robowars.Measurement import Filter
 from CustomObjs.SensorFuncs import IMUFuncs
-from CustomObjs.Euler import Rx, Rz
 
 
 def openFile(path, filename):
@@ -18,6 +20,30 @@ def openFile(path, filename):
     ACCEL_RANGE = MAX_VAL/16
     GYRO_RANGE = MAX_VAL/2000
     MAGNET_RANGE = MAX_VAL/4900
+
+    def Rx(theta):
+        Rx = np.array([
+            [1, 0, 0],
+            [0, np.cos(theta), -np.sin(theta)],
+            [0, np.sin(theta), np.cos(theta)]
+        ])
+        return Rx
+    
+    def Ry(theta):
+        Ry = np.array([
+            [np.cos(theta), 0, np.sin(theta)],
+            [0, 1, 0],
+            [-np.sin(theta), 0, np.cos(theta)]
+        ])
+        return Ry
+
+    def Rz(theta):
+        Rz = np.array([
+            [np.cos(theta), -np.sin(theta), 0],
+            [np.sin(theta), np.cos(theta), 0],
+            [0, 0, 1]
+        ])
+        return Rz
 
     data = {}
     data['t'] = (a[:, 0] - a[0, 0])/1000
@@ -56,7 +82,7 @@ def plotData(t, data, plotInfo, title='title'):
 
 
 pth = f'{filePath}\\sensordata'
-title = 'positiv-yaw'
+title = 'spinning'
 file = f'test-til-simen\\{title}.npy'
 IMU = IMUFuncs()
 rawData = openFile(pth, file)
@@ -67,10 +93,10 @@ for key, value in rawData.items():
     currentData[key] = value[0, :]
 r0, p0, y0 = IMU.getAngles(currentData)
 x0 = np.hstack((r0, p0, y0, currentData['gyro']))
-P0 = np.eye(6)
 dt = 1e-3
-# Initialize kalman filter
-sensorData = Filter(dt, x0, P0)
+model = RobotModel
+# Initialize sensor reader and kalman filter
+sensorData = SensorData(dt, model, x0)
 
 filteredData = sensorData.sample(np.array([0]*6), currentData)  # Sample filter
 for i in range(1, len(rawData['t'])):

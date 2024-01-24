@@ -9,12 +9,7 @@ class RobotModel:
         with open(f'{filePath}\\sensordata\\Rv.npy', 'rb') as f:
             a = np.load(f)
         self.Rv = np.cov(a, rowvar=False)  # Measurement noise
-        Qr, Qq, Qv, Qw = 5e0, 5e-1, 5e0, 5e-1
-        self.Qw = np.eye(13) # Process noise
-        self.Qw[:3, :3] *= Qr
-        self.Qw[3:7, 3:7] *= Qq
-        self.Qw[7:10, 7:10] *= Qv
-        self.Qw[10:13, 10:13] *= Qw
+        self.Qw = np.eye(13)*5e-2 # Process noise
         self.x0 = x0
         self.P0 = P0
         self.u0 = np.array([0]*6)
@@ -72,13 +67,13 @@ class RobotModel:
 
         normW = sp.sqrt(w[0]**2 + w[1]**2 + w[2]**2)
         rDot = sp.simplify(R*v)
-        qDot = sp.simplify(1/2*U*w) # See https://hal.science/hal-01122406/document (227)
+        qDot = sp.simplify(qFromAngleAxis(w/normW, normW*self.dt)) # See https://hal.science/hal-01122406/document (227)
         vDot = sp.simplify(-self.skew(w)*v + F/m)
         wDot = sp.simplify(J.inv()*(T - self.skew(w)*J*w))
 
         # Euler discretization
         rNext = sp.simplify(r + rDot*self.dt)
-        qNext = sp.simplify(q + qDot*self.dt) # See https://hal.science/hal-01122406/document (227)
+        qNext = sp.simplify(quaternionMultiplication(q, qDot)) # See https://hal.science/hal-01122406/document (227)
         vNext = sp.simplify(v + vDot*self.dt)
         wNext = sp.simplify(w + wDot*self.dt)
 
