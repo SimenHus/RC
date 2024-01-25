@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QGroupBox, QSizePolicy, QVBoxLayout, QTextBrowser
 
-class ClientGUI:
+class CommGUI:
     def __init__(self):
         # Interface box for client settings
         self.clientSettings = QGroupBox('Client settings')

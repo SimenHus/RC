@@ -2,7 +2,7 @@
 import numpy as np
 from dataclasses import dataclass
 
-from IMUGeneral import EulerFromIMU
+from .IMUGeneral import EulerFromIMU
 
 
 @dataclass

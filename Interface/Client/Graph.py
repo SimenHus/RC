@@ -2,8 +2,8 @@ import numpy as np
 
 from PySide6.QtCore import Slot, Signal
 
-from Modules.Graph.GraphGUI import GraphGUI
-from Modules.Graph.CustomWidgets import ControlButtonWidget
+from .GraphGUI import GraphGUI
+from .CustomWidgets import ControlButtonWidget
 
 class GraphHandler(GraphGUI):
 
@@ -55,25 +55,25 @@ class GraphHandler(GraphGUI):
     @Slot()
     def dataMessage(self, data: tuple) -> None:
 
-        data = np.array(data)
-        if len(data.shape) == 1: data = data.reshape((1, data.shape[0]))
+        # data = np.array(data)
+        # if len(data.shape) == 1: data = data.reshape((1, data.shape[0]))
 
-        MAX_VAL = 2**15
-        ACCEL_RANGE = MAX_VAL/16
-        GYRO_RANGE = MAX_VAL/2000
-        MAGN_RANGE = MAX_VAL/4900
+        # MAX_VAL = 2**15
+        # ACCEL_RANGE = MAX_VAL/16
+        # GYRO_RANGE = MAX_VAL/2000
+        # MAGN_RANGE = MAX_VAL/4900
 
-        # Extract and convert values
-        time = (data[:, 0] - data[0, 0])/1000
-        accel = data[:, 1:4]/ACCEL_RANGE
-        gyro = data[:, 4:7]/GYRO_RANGE
-        mag = data[:, 7:10]/MAGN_RANGE
+        # # Extract and convert values
+        # time = (data[:, 0] - data[0, 0])/1000
+        # accel = data[:, 1:4]/ACCEL_RANGE
+        # gyro = data[:, 4:7]/GYRO_RANGE
+        # mag = data[:, 7:10]/MAGN_RANGE
 
-        data = {
-            'acc': accel,
-            'gyro': gyro,
-            'mag': mag
-        }
+        # data = {
+        #     'acc': accel,
+        #     'gyro': gyro,
+        #     'mag': mag
+        # }
 
         if len(data) > self.graphDataControl.count(): self._setupDataWidgetGroup(data)
 

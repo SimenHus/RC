@@ -1,4 +1,3 @@
-import sys
 
 from PySide6.QtCore import Slot, Signal
 from PySide6.QtGui import QAction, QKeySequence, QKeyEvent
@@ -6,23 +5,22 @@ from PySide6.QtWidgets import (QApplication, QGroupBox,
                                QHBoxLayout, QMainWindow,
                                QSizePolicy, QWidget, QLabel)
 
-from Modules.SocketClient.ClientAsync import Client
-from Modules.Graph.Graph import GraphHandler
+from Communication.Sockets.SocketClient import SocketClient
+from .Graph import GraphHandler
 
 
-
-class MainWindow(QMainWindow):
+class Client(QMainWindow):
     outgoingSignal = Signal(set)
     def __init__(self):
         super().__init__()
         # Title and dimensions
         self.setWindowTitle("Client side application")
         self.setGeometry(0, 0, 800, 500)
-        self.path = 'C:\\Users\\simen\\Desktop\\Prog\\Python\\RC-Workbranch\\Sockets\\Resources'
+        self.path = 'C:\\Users\\shustad\\Desktop\\Prog\\RC\\Interface\\Client'
 
         self.Graph = GraphHandler()
-        self.Client = Client()
-        self.outgoingSignal.connect(self.Client.OutgoingAgent)
+        self.Client = SocketClient()
+        # self.outgoingSignal.connect(self.Client.OutgoingAgent)
         self.Client.dataSignal.connect(self.Graph.dataMessage)
         self.Client.statusSignal.connect(self.connectionStatus)
         self.Client.start()
@@ -59,7 +57,7 @@ class MainWindow(QMainWindow):
         widget = QWidget(self)
         widget.setLayout(layout)
         self.setCentralWidget(widget)
-    
+
     def controlButtonCB(self) -> None:
         self.outgoingSignal.emit(self.keyboardSet)
 
@@ -86,16 +84,3 @@ class MainWindow(QMainWindow):
         # Give time for the thread to finish
         self.Client.wait()
         self.close()
-
-if __name__ == "__main__":
-    app = QApplication()
-    w = MainWindow()
-    w.show()
-    
-    with open(f'{w.path}\\styleVariables.txt', 'r') as f: varList = f.readlines()
-    with open(f'{w.path}\\style.qss', 'r') as f: styleSheet = f.read()
-    for var in varList:
-        name, value = var.split('=')
-        styleSheet = styleSheet.replace(name, value)
-    app.setStyleSheet(styleSheet)
-    sys.exit(app.exec())

@@ -2,7 +2,7 @@
 import numpy as np
 
 from common import BNO055Data
-from DynamicModel import DynamicModel
+from .DynamicModel import DynamicModel
 
 class MeasurementModel:
     def __init__(self):

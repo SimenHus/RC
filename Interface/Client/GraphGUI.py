@@ -1,5 +1,5 @@
 
-from Modules.Graph.CustomWidgets import DataWidget, CustomGraphicsLayoutWidget, CustomPlotItem, ControlButtonWidget
+from .CustomWidgets import DataWidget, CustomGraphicsLayoutWidget, CustomPlotItem, ControlButtonWidget
 from PySide6.QtWidgets import (QApplication, QComboBox, QGroupBox, QWidgetItem,
                                QHBoxLayout, QLabel, QMainWindow, QPushButton,
                                QSizePolicy, QVBoxLayout, QWidget, QSpinBox,
