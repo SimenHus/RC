@@ -1,10 +1,9 @@
 import socket
+import pickle
+
 from PySide6.QtCore import QThread, Signal, Slot
 
-import pickle
-from Interface.Client.CommGUI import CommGUI
-
-class SocketClient(QThread, CommGUI):
+class SocketClient(QThread):
     dataSignal = Signal(dict)
     statusSignal = Signal(str)
 
@@ -15,13 +14,6 @@ class SocketClient(QThread, CommGUI):
         self.HOST = host
         self.PORT = port
         self.running = True
-        self.statusSignal.connect(self.statusMessage)
-
-
-    @Slot()
-    def statusMessage(self, data):
-        # Function to display status messages for the client
-        self.clientDisplay.append(str(data))
 
     def run(self):
         # Main loop. Will stop running if self.running = False

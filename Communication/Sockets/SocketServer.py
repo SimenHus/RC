@@ -5,8 +5,6 @@ from time import sleep
 
 from threading import Thread
 
-# python Desktop\Prog\Sockets\SocketServer.py
-
 class Server:
     def __init__(self, host='127.0.0.1', port=65432, *args, **kwargs):
 

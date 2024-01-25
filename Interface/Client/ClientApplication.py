@@ -5,21 +5,19 @@ from PySide6.QtWidgets import (QApplication, QGroupBox,
                                QHBoxLayout, QMainWindow,
                                QSizePolicy, QWidget, QLabel)
 
-from Communication.Sockets.SocketClient import SocketClient
-from .Graph import GraphHandler
 
+from .Graph import GraphHandler
 
 class Client(QMainWindow):
     outgoingSignal = Signal(set)
-    def __init__(self):
+    def __init__(self, commClient):
         super().__init__()
         # Title and dimensions
         self.setWindowTitle("Client side application")
         self.setGeometry(0, 0, 800, 500)
-        self.path = 'C:\\Users\\shustad\\Desktop\\Prog\\RC\\Interface\\Client'
 
         self.Graph = GraphHandler()
-        self.Client = SocketClient()
+        self.Client = commClient()
         # self.outgoingSignal.connect(self.Client.OutgoingAgent)
         self.Client.dataSignal.connect(self.Graph.dataMessage)
         self.Client.statusSignal.connect(self.connectionStatus)

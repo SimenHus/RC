@@ -29,7 +29,7 @@ COMMAND_START = b'%'
 COMMAND_END = b'&'
 
 
-class Client(QThread):
+class GATTClient(QThread):
     dataSignal = Signal(list)
     statusSignal = Signal(str)
 
